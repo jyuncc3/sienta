@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>個人油耗紀錄小幫手 (安全加密版)</title>
+    <title>個人油耗紀錄小幫手 (安全加密修復版)</title>
     
     <!-- iOS Web App Meta Tags (PWA) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -75,7 +75,7 @@
                     <i class="fas fa-shield-check absolute left-3.5 top-4.5 text-gray-400"></i>
                 </div>
                 
-                <!-- 新增：記住裝置選項 -->
+                <!-- 記住裝置選項 -->
                 <div class="flex items-center justify-between text-xs text-gray-500 px-1 pt-1">
                     <label class="flex items-center gap-2 cursor-pointer select-none">
                         <input type="checkbox" id="rememberDeviceInput" class="rounded text-primary focus:ring-primary w-4 h-4 border-gray-300">
@@ -376,7 +376,7 @@
                                     <p class="font-bold flex items-center gap-1.5 text-sm">
                                         <i class="fas fa-cloud-upload-alt text-red-500"></i> Google Sheets (雲端試算表) 同步設定
                                     </p>
-                                    <p class="leading-relaxed">本網頁可直接與您的 Google 試算表達成<strong>雙向極時同步</strong>。我們不把你的連結暴露在程式碼中，而是使用你剛才設定的「安全密碼」在你的手機本地加密保存。確保駭客或第三方無從得知！</p>
+                                    <p class="leading-relaxed">本網頁可直接與您的 Google 試算表達成<strong>雙向即時同步</strong>。我們不把你的連結暴露在程式碼中，而是使用你剛才設定的「安全密碼」在你的手機本地加密保存。確保駭客或第三方無從得知！</p>
                                 </div>
 
                                 <!-- Sync Form -->
@@ -416,16 +416,25 @@
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var data = sheet.getDataRange().getValues();
   var result = [];
-  for (var i = 1; i < data.length; i++) {
+  for (var i = 1; i &lt; data.length; i++) {
     var row = data[i];
     if(!row[0]) continue;
     var rawDate = row[0];
     var formattedDate = "";
-    if (rawDate instanceof Date) {
-      formattedDate = Utilities.formatDate(rawDate, Session.getScriptTimeZone(), "yyyy-MM-dd");
+    
+    // 使用 Apps Script 原生 API 進行超強固日期解析
+    var d = new Date(rawDate);
+    if (!isNaN(d.getTime())) {
+      formattedDate = Utilities.formatDate(d, Session.getScriptTimeZone() || "GMT+8", "yyyy-MM-dd");
     } else {
-      formattedDate = String(rawDate).split('T')[0];
+      var strDate = String(rawDate);
+      if (strDate.indexOf('T') !== -1 &amp;&amp; strDate.indexOf('GMT') === -1) {
+        formattedDate = strDate.split('T')[0];
+      } else {
+        formattedDate = strDate;
+      }
     }
+    
     result.push({
       date: formattedDate,
       mileage: Number(row[1]),
@@ -441,7 +450,7 @@ function doPost(e) {
   sheet.clearContents();
   sheet.appendRow(["加油日期", "行駛當下里程", "一公升油價", "加油公升數"]);
   var payload = JSON.parse(e.postData.contents);
-  for (var i = 0; i < payload.length; i++) {
+  for (var i = 0; i &lt; payload.length; i++) {
     var r = payload[i];
     sheet.appendRow([r.date, r.mileage, r.price, r.liters]);
   }
@@ -689,6 +698,37 @@ function doPost(e) {
         // 預設將日期設定為今天
         document.getElementById('date').valueAsDate = new Date();
 
+        // 偵測、修復並標準化不合規日期為 YYYY-MM-DD
+        function parseAndFormatDate(dateStr) {
+            if (!dateStr) {
+                const today = new Date();
+                return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            }
+            let s = String(dateStr).trim();
+            
+            // 🔴 核心修復：還原被錯誤切割 'GMT' 時切掉的 'T'
+            if (s.endsWith(" GM")) {
+                s += "T"; // 補回 'T' 變成 GMT
+            }
+            
+            // 如果已經是標準格式 YYYY-MM-DD 則直接回傳
+            if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+                return s;
+            }
+            
+            const parsed = new Date(s);
+            if (!isNaN(parsed.getTime())) {
+                const y = parsed.getFullYear();
+                const m = String(parsed.getMonth() + 1).padStart(2, '0');
+                const d = String(parsed.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+            
+            // 終極防呆：如格式依然無法識別，改用今日日期避免 NaN 導致排序與油耗計算系統崩潰
+            const today = new Date();
+            return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        }
+
         // 檢查是否已有密碼設定，並執行智慧自動解鎖
         window.addEventListener('DOMContentLoaded', () => {
             const hasPass = localStorage.getItem('secureKey_configured');
@@ -705,7 +745,6 @@ function doPost(e) {
                 const savedPassEncrypted = localStorage.getItem('autoUnlock_key');
                 if (savedPassEncrypted) {
                     try {
-                        // 使用設備混淆金鑰，將儲存在 localStorage 裡面的主密碼解密
                         const decryptedPass = CryptoJS.AES.decrypt(savedPassEncrypted, "device_salt_9823").toString(CryptoJS.enc.Utf8);
                         if (decryptedPass) {
                             masterPassword = decryptedPass;
@@ -714,16 +753,15 @@ function doPost(e) {
                                 records = decryptedRecords;
                                 enterApp();
                                 
-                                // 顯示微小的同步自動解鎖提示
                                 setTimeout(() => {
-                                    showModal("信任裝置自動解鎖 🔓", "已偵測到信任裝置，自動完成 AES-256 安全解密！", "success");
+                                    showModal("信任裝置自動解鎖 🔓", "已偵測到信任裝置，自動完成 AES-256 安全解密與智慧修復！", "success");
                                 }, 600);
-                                return; // 阻斷 lockScreen 鎖定介面的顯示
+                                return; 
                             }
                         }
                     } catch (e) {
                         console.error("Auto unlock failed", e);
-                        localStorage.removeItem('autoUnlock_key'); // 失敗則抹除錯誤金鑰
+                        localStorage.removeItem('autoUnlock_key');
                     }
                 }
             } else {
@@ -749,30 +787,23 @@ function doPost(e) {
             }
 
             if (!hasPass) {
-                // 初次設定密碼
                 if (passInput !== confirmInput) {
                     showModal("密碼不一致", "兩次輸入的密碼不相同，請重新確認！", "warning");
                     return;
                 }
                 
-                // 設定成功，儲存標記
                 localStorage.setItem('secureKey_configured', 'true');
                 masterPassword = passInput;
                 
-                // 儲存信任此裝置設定
                 const rememberDevice = document.getElementById('rememberDeviceInput').checked;
                 if (rememberDevice) {
                     const encryptedPass = CryptoJS.AES.encrypt(masterPassword, "device_salt_9823").toString();
                     localStorage.setItem('autoUnlock_key', encryptedPass);
                 }
 
-                // 初始化空的加密資料庫並儲存
                 saveEncryptedData([]);
-                
-                showModal("密碼設定成功", "密碼設定完成！您所有的加油數據與雲端設定，往後都將受到金融級 AES-256 強制加密防護。", "success");
                 enterApp();
             } else {
-                // 嘗試解密現有資料以驗證密碼
                 masterPassword = passInput;
                 const decryptedRecords = loadDecryptedData();
                 
@@ -782,7 +813,6 @@ function doPost(e) {
                 } else {
                     records = decryptedRecords;
                     
-                    // 記錄信任此裝置設定
                     const rememberDevice = document.getElementById('rememberDeviceInput').checked;
                     if (rememberDevice) {
                         const encryptedPass = CryptoJS.AES.encrypt(masterPassword, "device_salt_9823").toString();
@@ -801,7 +831,6 @@ function doPost(e) {
             document.getElementById('lockScreen').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden');
             
-            // 嘗試還原並載入加密的 Google Script URL
             const encryptedUrl = localStorage.getItem('googleScriptUrl_encrypted');
             if (encryptedUrl) {
                 try {
@@ -814,13 +843,14 @@ function doPost(e) {
                 }
             }
 
+            // 🔴 解鎖時強制啟用資料清洗與修復，保障舊資料無痛修正
+            sanitizeAllRecordDates();
             sortRecords();
             renderTableAndStats();
         }
 
         // 安全上鎖
         function lockApp() {
-            // 安全上鎖時，主動清除自動解鎖金鑰，防止再次打開自動登入
             localStorage.removeItem('autoUnlock_key');
             masterPassword = "";
             records = [];
@@ -844,22 +874,42 @@ function doPost(e) {
         function loadDecryptedData() {
             if (!masterPassword) return null;
             const ciphertext = localStorage.getItem('gasRecords_encrypted');
-            if (!ciphertext) return []; // 若尚無資料，回傳空陣列
+            if (!ciphertext) return [];
 
             try {
                 const bytes = CryptoJS.AES.decrypt(ciphertext, masterPassword);
                 const decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
-                if (!decryptedStr) return null; // 解密失敗
+                if (!decryptedStr) return null;
                 return JSON.parse(decryptedStr);
             } catch (err) {
-                return null; // 解密失敗或密碼錯誤
+                return null;
             }
         }
 
 
         // ==========================================
-        // 🔄 智慧排序與計算引擎 (修復首筆位置錯亂)
+        // 🔄 智慧資料清洗與排序引擎
         // ==========================================
+
+        // 🔴 清洗並修復所有紀錄日期，防範 Invalid Date 與 GMT Chopping Bug 殘留
+        function sanitizeAllRecordDates() {
+            let modified = false;
+            records = records.map(r => {
+                const cleaned = parseAndFormatDate(r.date);
+                if (cleaned !== r.date) {
+                    r.date = cleaned;
+                    modified = true;
+                }
+                // 轉型數值清洗防呆
+                r.mileage = parseFloat(r.mileage) || 0;
+                r.price = parseFloat(r.price) || 0;
+                r.liters = parseFloat(r.liters) || 0;
+                return r;
+            });
+            if (modified) {
+                saveEncryptedData(records); // 密碼存在時重新寫入修正後的檔案
+            }
+        }
 
         // 統一排序函式：優先按日期由新到舊排序；若日期相同，則按里程由大到小排序
         function sortRecords() {
@@ -878,10 +928,10 @@ function doPost(e) {
             const current = records[currentIndex];
             for (let j = currentIndex + 1; j < records.length; j++) {
                 if (records[j].mileage < current.mileage) {
-                    return records[j]; // 找到了里程更小、時間更早的有效上一筆紀錄
+                    return records[j]; 
                 }
             }
-            return null; // 找不到比它里程小的更早紀錄，即為首筆
+            return null;
         }
 
 
@@ -889,7 +939,6 @@ function doPost(e) {
         // 📱 切換分頁與選單
         // ==========================================
 
-        // 切換主分頁 (加油記帳 vs 統計分析)
         function switchMainTab(mainTabId) {
             const trackerTab = document.getElementById('main-tab-tracker');
             const analysisTab = document.getElementById('main-tab-analysis');
@@ -908,12 +957,10 @@ function doPost(e) {
                 trackerSection.classList.add('hidden');
                 analysisSection.classList.remove('hidden');
                 
-                // 初始化並渲染分析報表數據
                 initAnalysisView();
             }
         }
 
-        // 切換輸入 Tab
         function switchInputTab(tabId) {
             const tabs = ['manual', 'qr', 'carrier', 'paste', 'excel', 'google'];
             tabs.forEach(t => {
@@ -933,7 +980,6 @@ function doPost(e) {
             }
         }
 
-        // Toggle Google setup instruction block
         function toggleSetupInstructions() {
             const block = document.getElementById('setup-instructions');
             const arrow = document.getElementById('arrow-setup');
@@ -1080,7 +1126,7 @@ function doPost(e) {
         }
 
         function importCarrierInvoice(inv) {
-            document.getElementById('date').value = inv.date;
+            document.getElementById('date').value = parseAndFormatDate(inv.date);
             document.getElementById('price').value = inv.price;
             document.getElementById('liters').value = inv.liters;
             
@@ -1185,15 +1231,8 @@ function doPost(e) {
 
                 if (rawDate === undefined && rawMileage === undefined) return;
 
-                let formattedDate = "";
-                if (rawDate instanceof Date && !isNaN(rawDate)) {
-                    formattedDate = rawDate.toISOString().split('T')[0];
-                } else if (rawDate) {
-                    const d = new Date(String(rawDate).trim());
-                    if (!isNaN(d.getTime())) {
-                        formattedDate = d.toISOString().split('T')[0];
-                    }
-                }
+                // 使用強固型日期轉換
+                const formattedDate = parseAndFormatDate(rawDate);
 
                 const mileage = parseFloat(String(rawMileage || '').replace(/[^\d\.]/g, ''));
                 const price = parseFloat(String(rawPrice || '').replace(/[^\d\.]/g, ''));
@@ -1259,7 +1298,6 @@ function doPost(e) {
                 return;
             }
 
-            // 本地加密保存 Google 試算表部署 URL
             const encryptedUrl = CryptoJS.AES.encrypt(url, masterPassword).toString();
             localStorage.setItem('googleScriptUrl_encrypted', encryptedUrl);
 
@@ -1279,9 +1317,11 @@ function doPost(e) {
                         data.forEach(cloudRec => {
                             const key = `${cloudRec.date}_${cloudRec.mileage}`;
                             if (!localMap.has(key)) {
+                                // 智慧清洗雲端帶入的日期
+                                const formattedCloudDate = parseAndFormatDate(cloudRec.date);
                                 localMap.set(key, {
                                     id: Date.now() + Math.random(),
-                                    date: cloudRec.date,
+                                    date: formattedCloudDate,
                                     mileage: Number(cloudRec.mileage),
                                     price: Number(cloudRec.price),
                                     liters: Number(cloudRec.liters)
@@ -1291,6 +1331,8 @@ function doPost(e) {
                         });
 
                         records = Array.from(localMap.values());
+                        // 強制清洗一次，將以前損毀的 " GM" 徹底根治
+                        sanitizeAllRecordDates();
                         sortRecords();
                         saveEncryptedData(records);
                         renderTableAndStats();
@@ -1351,7 +1393,7 @@ function doPost(e) {
         // ==========================================
 
         function saveRecord() {
-            const date = document.getElementById('date').value;
+            const date = parseAndFormatDate(document.getElementById('date').value);
             const mileage = parseFloat(document.getElementById('mileage').value);
             const price = parseFloat(document.getElementById('price').value);
             const liters = parseFloat(document.getElementById('liters').value);
@@ -1386,7 +1428,6 @@ function doPost(e) {
             showModal('儲存成功', '加油紀錄已加密並成功儲存！', 'success');
         }
 
-        // 自訂確認對話框觸發器 (取代 confirm)
         function triggerClearAll() {
             showConfirmModal("清空全部數據", "警告！這將清除您所有的加油與油耗歷史紀錄且無法恢復。確定要清空嗎？", () => {
                 records = [];
@@ -1433,7 +1474,6 @@ function doPost(e) {
                 totalLiters += current.liters;
                 totalPriceSum += current.price;
 
-                // 使用上一筆智慧搜尋演算法
                 const previous = getPreviousRecord(i);
                 if (previous && current.liters > 0) {
                     const distance = current.mileage - previous.mileage;
@@ -1471,7 +1511,6 @@ function doPost(e) {
             document.getElementById('statLatestEco').innerText = latestEco;
             document.getElementById('statTotalLiters').innerText = totalLiters.toFixed(2);
             
-            // 累計里程：最高里程減最低里程，防止被中間亂插、打錯的數值誤導
             if (records.length >= 2) {
                 const mileages = records.map(r => r.mileage);
                 const absoluteDistance = Math.max(...mileages) - Math.min(...mileages);
