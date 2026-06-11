@@ -3,647 +3,381 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>個人油耗紀錄小幫手 (安全加密修復版)</title>
+    <title>雙載具油耗紀錄 Pro v2</title>
     
-    <!-- iOS Web App Meta Tags (PWA) -->
+    <!-- iOS Web App Meta Tags (PWA 專屬設定，加入主畫面自動變身原生 App) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="油耗小幫手">
+    <meta name="apple-mobile-web-app-title" content="油耗 Pro v2">
     <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1518131362479-7928e34898cd?auto=format&fit=crop&w=256&h=256&q=80">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
+    <!-- FontAwesome 圖示 -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- QR Code Scanner Library -->
-    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
-    <!-- Chart.js for Beautiful Charts -->
+    <!-- Chart.js 統計圖表 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- SheetJS (xlsx) for Excel import/export -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <!-- CryptoJS for Military-grade Encryption -->
+    <!-- CryptoJS 金融級加密防護 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    
     <script>
         tailwind.config = {
             theme: {
-                extend: {
-                    colors: {
-                        primary: '#0ea5e9',
-                        secondary: '#f3f4f6',
-                    }
-                }
+                extend: { colors: { primary: '#2563eb', motor: '#10b981' } }
             }
         }
     </script>
     <style>
-        /* 隱藏滾動條但保持滾動功能 */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-        /* 提升 iOS 點擊響應速度與無框體驗 */
-        button, input, select, textarea {
-            -webkit-tap-highlight-color: transparent;
-        }
+        body { background: #f5f7fb; }
+        button, input, select { -webkit-tap-highlight-color: transparent; }
+        .vehicle-active.active-car { background-color: #2563eb; color: white; }
+        .vehicle-active.active-motor { background-color: #10b981; color: white; }
+        .nav-btn.active { border-bottom: 3px solid #2563eb; color: #2563eb; font-weight: 700; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans min-h-screen p-3 md:p-8 pb-10">
+<body class="bg-slate-50 text-gray-800 font-sans min-h-screen pb-20">
 
     <!-- ======================================================= -->
     <!-- 🔑 SECURITY LOCK SCREEN (安全解鎖畫面) -->
     <!-- ======================================================= -->
-    <div id="lockScreen" class="fixed inset-0 bg-gray-900 flex items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-3xl max-w-md w-full p-6 md:p-8 shadow-2xl space-y-5 text-center transform transition-all scale-100">
-            <div class="mx-auto bg-sky-100 text-primary h-16 w-16 rounded-2xl flex items-center justify-center text-3xl animate-pulse">
+    <div id="lockScreen" class="fixed inset-0 bg-slate-900 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl p-6 md:p-8 w-full max-w-sm shadow-2xl space-y-5 text-center">
+            <div class="mx-auto bg-blue-100 text-blue-600 h-16 w-16 rounded-2xl flex items-center justify-center text-3xl animate-pulse">
                 <i class="fas fa-shield-alt"></i>
             </div>
             <div>
-                <h2 id="lockScreenTitle" class="text-2xl font-bold text-gray-900">安全防護鎖</h2>
-                <p id="lockScreenDesc" class="text-xs text-gray-500 mt-2 leading-relaxed">首次使用請設定您的專屬安全解鎖密碼，此密碼將用於將您的雲端網址與本地油耗數據加密儲存。</p>
+                <h2 id="lockScreenTitle" class="text-xl font-bold text-slate-800">油耗紀錄 Pro v2</h2>
+                <p id="lockScreenDesc" class="text-xs text-gray-500 mt-1 leading-relaxed">首次使用請設定您的解鎖密碼，此密碼將用於將您的雲端網址與本地數據進行 AES-256 強效加密。</p>
             </div>
             
-            <div class="space-y-3">
+            <div class="space-y-3 text-left">
                 <div class="relative">
-                    <input type="password" id="masterPasswordInput" placeholder="請輸入安全密碼..." class="w-full rounded-xl border border-gray-300 p-3.5 pl-10 focus:ring-2 focus:ring-primary outline-none text-center font-mono text-lg tracking-widest" onkeydown="if(event.key === 'Enter') handleUnlock()">
+                    <input type="password" id="masterPasswordInput" placeholder="請輸入安全密碼..." class="w-full border rounded-xl p-3.5 pl-10 focus:ring-2 focus:ring-blue-500 outline-none text-center font-mono text-lg tracking-widest" onkeydown="if(event.key === 'Enter') handleUnlock()">
                     <i class="fas fa-key absolute left-3.5 top-4.5 text-gray-400"></i>
                 </div>
                 <div id="setConfirmPasswordWrapper" class="relative hidden">
-                    <input type="password" id="masterPasswordConfirmInput" placeholder="請再次輸入密碼以確認..." class="w-full rounded-xl border border-gray-300 p-3.5 pl-10 focus:ring-2 focus:ring-primary outline-none text-center font-mono text-lg tracking-widest" onkeydown="if(event.key === 'Enter') handleUnlock()">
+                    <input type="password" id="masterPasswordConfirmInput" placeholder="請再次輸入密碼以確認..." class="w-full border rounded-xl p-3.5 pl-10 focus:ring-2 focus:ring-blue-500 outline-none text-center font-mono text-lg tracking-widest" onkeydown="if(event.key === 'Enter') handleUnlock()">
                     <i class="fas fa-shield-check absolute left-3.5 top-4.5 text-gray-400"></i>
                 </div>
                 
-                <!-- 記住裝置選項 -->
+                <!-- 記住此裝置選項 -->
                 <div class="flex items-center justify-between text-xs text-gray-500 px-1 pt-1">
                     <label class="flex items-center gap-2 cursor-pointer select-none">
-                        <input type="checkbox" id="rememberDeviceInput" class="rounded text-primary focus:ring-primary w-4 h-4 border-gray-300">
+                        <input type="checkbox" id="rememberDeviceInput" checked class="rounded text-blue-600 focus:ring-blue-500 w-4 h-4 border-gray-300">
                         <span class="font-medium">記住此裝置 (自動解鎖)</span>
                     </label>
                     <span class="text-[10px] text-gray-400">適合私人手機</span>
                 </div>
 
-                <button onclick="handleUnlock()" id="btnUnlock" class="w-full bg-primary hover:bg-sky-600 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-sky-100 flex items-center justify-center gap-2 text-base">
+                <button onclick="handleUnlock()" id="btnUnlock" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-blue-100 flex items-center justify-center gap-2 text-base">
                     <i class="fas fa-lock-open"></i> <span>解鎖並進入系統</span>
                 </button>
             </div>
-            
-            <div class="text-[10px] text-gray-400 leading-relaxed">
-                * 密碼不儲存在任何伺服器上，僅作為本地加密密鑰 (PBKDF2 SHA-256)。<br>
-                請務必記住您的密碼，密碼遺失將無法恢復您的本地歷史數據！
-            </div>
         </div>
     </div>
 
-
     <!-- ======================================================= -->
-    <!-- 🚗 MAIN APP INTERFACE (解鎖後顯示之主畫面) -->
+    <!-- 🚗 MAIN APP INTERFACE -->
     <!-- ======================================================= -->
-    <div id="mainApp" class="hidden max-w-5xl mx-auto space-y-5">
+    <div id="mainApp" class="hidden">
         
         <!-- Header -->
-        <header class="text-center mb-4 md:mb-6 relative">
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-900 flex items-center justify-center gap-2">
-                <i class="fas fa-gas-pump text-primary animate-bounce"></i> 油耗紀錄小幫手
-            </h1>
-            <p class="text-xs text-gray-500 mt-1">軍事級 AES-256 加密防護 • Google Sheets 雲端即時同步</p>
-            <!-- Lock Button -->
-            <button onclick="lockApp()" class="absolute top-0 right-0 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-lg p-2.5 transition-colors text-xs flex items-center gap-1.5 font-semibold">
-                <i class="fas fa-lock text-red-500"></i> 安全上鎖
-            </button>
-        </header>
-
-        <!-- iPhone PWA Install Tip Box -->
-        <div id="iosInstallTip" class="bg-gradient-to-r from-sky-500 to-primary text-white rounded-2xl p-4 shadow-sm relative overflow-hidden flex items-center justify-between md:hidden">
-            <div class="space-y-1 pr-6">
-                <h4 class="font-bold text-sm"><i class="fas fa-mobile-alt mr-1"></i> 把網頁變成 iPhone App！</h4>
-                <p class="text-[11px] text-sky-100 leading-relaxed">用 iPhone Safari 開啟，點下方分享按鈕 <i class="fas fa-share-square"></i> ➡️ 選擇<strong>「加入主畫面」</strong>，即可享受極速免下載的油耗 App 體驗！</p>
+        <div class="bg-white shadow p-4 sticky top-0 z-30">
+            <div class="max-w-4xl mx-auto flex justify-between items-center">
+                <h1 class="font-bold text-xl flex items-center gap-2 text-slate-800">
+                    <i class="fas fa-gas-pump text-blue-600" id="header-icon"></i> 油耗紀錄 Pro v2
+                </h1>
+                <button onclick="lockApp()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 shadow-sm">
+                    <i class="fas fa-lock"></i> 上鎖
+                </button>
             </div>
-            <button onclick="document.getElementById('iosInstallTip').style.display='none'" class="absolute top-2 right-2 text-white opacity-70 hover:opacity-100 text-sm">
-                <i class="fas fa-times"></i>
-            </button>
         </div>
 
-        <!-- Main Navigation Tabs -->
-        <div class="bg-white rounded-2xl p-1.5 shadow-sm border border-gray-100 flex max-w-md mx-auto mb-4">
-            <button onclick="switchMainTab('tracker')" id="main-tab-tracker" class="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 bg-primary text-white shadow-md">
-                <i class="fas fa-gas-pump"></i> 加油記帳
-            </button>
-            <button onclick="switchMainTab('analysis')" id="main-tab-analysis" class="flex-1 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-gray-500 hover:text-gray-800">
-                <i class="fas fa-chart-bar"></i> 統計分析
-            </button>
-        </div>
+        <!-- Main Workspace -->
+        <div class="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
 
-        <!-- ======================================================= -->
-        <!-- SECTION 1: TRACKER TAB (加油記帳) -->
-        <!-- ======================================================= -->
-        <div id="section-tracker" class="space-y-6">
-            <!-- Main Workspace (Grid Layout) -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <!-- 載具與功能切換選單 -->
+            <div class="flex flex-col md:flex-row gap-4 justify-between items-center">
+                <div class="bg-white rounded-full p-1 shadow-sm border border-gray-200 inline-flex w-full md:w-auto">
+                    <button id="btnCar" class="tab-btn vehicle-active active-car px-6 py-2.5 rounded-full text-sm font-bold transition-all flex-1 md:flex-initial flex items-center justify-center gap-2" onclick="setVehicle('car')">
+                        🚗 汽車
+                    </button>
+                    <button id="btnMotor" class="tab-btn px-6 py-2.5 rounded-full text-sm font-bold transition-all flex-1 md:flex-initial flex items-center justify-center gap-2 text-gray-500 hover:text-gray-800" onclick="setVehicle('motorcycle')">
+                        🏍️ 機車
+                    </button>
+                </div>
+
+                <!-- Main Navigation Tab Buttons -->
+                <div class="flex bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 w-full md:w-auto">
+                    <button onclick="switchTab('input')" id="nav-input" class="nav-btn active px-5 py-3 text-xs md:text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
+                        <i class="fas fa-pen-to-square"></i> 手動記帳
+                    </button>
+                    <button onclick="switchTab('analysis')" id="nav-analysis" class="nav-btn px-5 py-3 text-xs md:text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
+                        <i class="fas fa-chart-line"></i> 統計分析
+                    </button>
+                    <button onclick="switchTab('sync')" id="nav-sync" class="nav-btn px-5 py-3 text-xs md:text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-2">
+                        <i class="fas fa-sync"></i> 雲端同步
+                    </button>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- TAB 1: Input & History -->
+            <!-- ========================================== -->
+            <div id="tab-input" class="space-y-6 block">
                 
-                <!-- Left Panel: Input & Auto-load Methods (7 Cols) -->
-                <div class="lg:col-span-7 space-y-6">
-                    
-                    <!-- Input Card with Tabs -->
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        
-                        <!-- Tabs Header (Scrollable on mobile) -->
-                        <div class="bg-gray-50 border-b border-gray-100 flex p-1 overflow-x-auto no-scrollbar whitespace-nowrap">
-                            <button onclick="switchInputTab('manual')" id="tab-manual" class="flex-1 min-w-[90px] py-3 text-xs md:text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 bg-white text-primary shadow-sm flex-shrink-0">
-                                <i class="fas fa-keyboard"></i> 手動輸入
-                            </button>
-                            <button onclick="switchInputTab('qr')" id="tab-qr" class="flex-1 min-w-[90px] py-3 text-xs md:text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 text-gray-500 hover:text-gray-800 flex-shrink-0">
-                                <i class="fas fa-qrcode"></i> 掃描發票
-                            </button>
-                            <button onclick="switchInputTab('carrier')" id="tab-carrier" class="flex-1 min-w-[90px] py-3 text-xs md:text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 text-gray-500 hover:text-gray-800 flex-shrink-0">
-                                <i class="fas fa-cloud"></i> 雲端載具
-                            </button>
-                            <button onclick="switchInputTab('paste')" id="tab-paste" class="flex-1 min-w-[90px] py-3 text-xs md:text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 text-gray-500 hover:text-gray-800 flex-shrink-0">
-                                <i class="fas fa-paste"></i> 智慧貼上
-                            </button>
-                            <button onclick="switchInputTab('excel')" id="tab-excel" class="flex-1 min-w-[90px] py-3 text-xs md:text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 text-gray-500 hover:text-gray-800 flex-shrink-0">
-                                <i class="fas fa-file-excel text-emerald-600"></i> Excel匯入
-                            </button>
-                            <!-- Google Sync Tab -->
-                            <button onclick="switchInputTab('google')" id="tab-google" class="flex-1 min-w-[100px] py-3 text-xs md:text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 text-gray-500 hover:text-gray-800 flex-shrink-0">
-                                <i class="fab fa-google text-red-500"></i> 雲端同步
-                            </button>
+                <!-- 新增紀錄 Form -->
+                <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                    <h2 class="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2" id="input-title">
+                        <i class="fas fa-car text-blue-600"></i> 新增紀錄
+                    </h2>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">加油日期</label>
+                            <input type="date" id="date" class="w-full border rounded-lg p-3 outline-none focus:border-blue-500">
                         </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">里程 (km)</label>
+                            <input type="number" id="mileage" inputmode="decimal" placeholder="里程" class="w-full border p-3 rounded-lg outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">一公升油價 (元)</label>
+                            <input type="number" step="0.1" id="price" inputmode="decimal" placeholder="油價" class="w-full border p-3 rounded-lg outline-none focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-500 mb-1">加油量 (L)</label>
+                            <input type="number" step="0.01" id="liters" inputmode="decimal" placeholder="公升" class="w-full border p-3 rounded-lg outline-none focus:border-blue-500">
+                        </div>
+                    </div>
+                    <button onclick="saveRecord()" class="w-full bg-gray-900 hover:bg-gray-800 text-white mt-5 px-6 py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
+                        <i class="fas fa-save"></i> 儲存紀錄
+                    </button>
+                </div>
 
-                        <div class="p-5 md:p-6">
-                            <!-- 1. 手動輸入 Tab Content -->
-                            <div id="content-manual" class="space-y-4">
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">加油日期</label>
-                                        <input type="date" id="date" class="w-full rounded-lg border-gray-300 border p-3 md:p-2.5 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-base">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">當下車錶里程 (km)</label>
-                                        <input type="number" id="mileage" inputmode="decimal" placeholder="例如：52000" class="w-full rounded-lg border-gray-300 border p-3 md:p-2.5 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-base">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">一公升油價 (元)</label>
-                                        <input type="number" step="0.1" id="price" inputmode="decimal" placeholder="例如：30.5" class="w-full rounded-lg border-gray-300 border p-3 md:p-2.5 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-base">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">加油總公升數 (L)</label>
-                                        <input type="number" step="0.01" id="liters" inputmode="decimal" placeholder="例如：35.2" class="w-full rounded-lg border-gray-300 border p-3 md:p-2.5 focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-base">
-                                    </div>
-                                </div>
-                                <button onclick="saveRecord()" class="w-full mt-2 bg-primary hover:bg-sky-600 text-white font-bold py-3.5 md:py-3 px-4 rounded-xl transition-all flex justify-center items-center gap-2 shadow-lg shadow-sky-100 text-base">
-                                    <i class="fas fa-save"></i> 儲存加油紀錄
-                                </button>
-                            </div>
+                <!-- 歷史紀錄 Table -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                        <h3 class="font-bold text-gray-800 text-sm">歷史紀錄 (<span id="history-vehicle-name">汽車</span>) <span class="text-xs text-gray-400 font-normal ml-2">最新排在最上方</span></h3>
+                        <button onclick="clearCurrentVehicleRecords()" class="text-xs text-red-500 font-semibold hover:bg-red-50 px-2 py-1 rounded">清空資料</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm whitespace-nowrap border-collapse">
+                            <thead class="bg-gray-50 text-gray-500 text-xs font-semibold uppercase tracking-wider">
+                                <tr>
+                                    <th class="p-4">日期</th>
+                                    <th class="p-4">里程 (km)</th>
+                                    <th class="p-4">油價 (元)</th>
+                                    <th class="p-4">公升數 (L)</th>
+                                    <th class="p-4 text-blue-600">油耗 (km/L)</th>
+                                    <th class="p-4 text-center">刪除</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recordTableBody" class="divide-y divide-gray-100"></tbody>
+                        </table>
+                        <div id="emptyState" class="hidden p-12 text-center text-gray-400 text-sm">
+                            <i class="fas fa-folder-open text-4xl mb-2 text-gray-300"></i><br>目前沒有紀錄
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                            <!-- 2. QR Code 掃描 Tab Content -->
-                            <div id="content-qr" class="hidden space-y-4">
-                                <div class="p-4 bg-sky-50 rounded-xl text-sky-800 text-xs flex gap-2">
-                                    <i class="fas fa-info-circle text-base mt-0.5"></i>
-                                    <div>
-                                        請允許相機權限，並將實體發票上的 <strong>左側 QR Code</strong> 對準鏡頭。<br>
-                                        系統會自動提取交易日期、加油公升數（L）與一公升單價。
-                                    </div>
-                                </div>
-                                
-                                <!-- Scanner Target -->
-                                <div class="relative rounded-xl overflow-hidden bg-black border-2 border-dashed border-gray-300 aspect-video flex items-center justify-center">
-                                    <div id="reader" class="w-full h-full"></div>
-                                    <div id="scannerPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400 bg-gray-900 bg-opacity-70 z-10">
-                                        <i class="fas fa-camera text-4xl mb-2 animate-pulse"></i>
-                                        <button onclick="startScanning()" class="bg-primary text-white font-semibold px-4 py-2 rounded-lg hover:bg-sky-600 transition-all text-sm">
-                                            啟動相機掃描
-                                        </button>
-                                    </div>
-                                </div>
-                                <button id="btnStopScan" onclick="stopScanning()" class="hidden w-full bg-red-100 text-red-700 hover:bg-red-200 py-2.5 rounded-xl font-semibold transition-all">
-                                    關閉相機
-                                </button>
+            <!-- ========================================== -->
+            <!-- TAB 2: Analysis (統計分析) -->
+            <!-- ========================================== -->
+            <div id="tab-analysis" class="hidden space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex justify-between items-center">
+                    <h2 class="text-base font-bold flex items-center gap-2"><i class="fas fa-chart-pie text-blue-600"></i> 年度統計分析</h2>
+                    <select id="yearSelect" onchange="renderAnalysis()" class="border border-gray-300 rounded-lg p-2 text-sm font-semibold outline-none bg-white"></select>
+                </div>
 
-                                <!-- Scanned Result Preview -->
-                                <div id="scanResultCard" class="hidden p-4 bg-green-50 border border-green-200 rounded-xl space-y-3">
-                                    <h4 class="font-bold text-green-800 flex items-center gap-2"><i class="fas fa-check-circle"></i> 成功讀取發票明細！</h4>
-                                    <div class="grid grid-cols-3 gap-2 text-xs text-green-900">
-                                        <div><strong>發票號碼:</strong> <span id="scanInvNum">--</span></div>
-                                        <div><strong>日期:</strong> <span id="scanDate">--</span></div>
-                                        <div><strong>品名:</strong> <span id="scanGasType">--</span></div>
-                                        <div><strong>公升數:</strong> <span id="scanLiters">--</span> L</div>
-                                        <div><strong>單價:</strong> <span id="scanPrice">--</span> 元</div>
-                                        <div><strong>總額:</strong> <span id="scanTotal">--</span> 元</div>
-                                    </div>
-                                    <button onclick="applyScannedData()" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 rounded-lg transition-all text-sm">
-                                        帶入並填寫此發票資料
-                                    </button>
-                                </div>
-                            </div>
+                <!-- 統計卡片 -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-xs text-gray-400 font-medium">年度總里程</div>
+                        <div id="statDistance" class="text-xl font-extrabold text-slate-800 mt-1">0 <span class="text-xs font-normal">km</span></div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-xs text-gray-400 font-medium">年度平均油耗</div>
+                        <div id="statEconomy" class="text-xl font-extrabold text-blue-600 mt-1">0.00 <span class="text-xs font-normal">km/L</span></div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-xs text-gray-400 font-medium">年度總公升數</div>
+                        <div id="statLiters" class="text-xl font-extrabold text-slate-800 mt-1">0.00 <span class="text-xs font-normal">L</span></div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <div class="text-xs text-gray-400 font-medium">年度總花費</div>
+                        <div id="statCost" class="text-xl font-extrabold text-orange-500 mt-1">0 <span class="text-xs font-normal">元</span></div>
+                    </div>
+                </div>
 
-                            <!-- 3. 雲端載具 Tab Content -->
-                            <div id="content-carrier" class="hidden space-y-4">
-                                <div class="p-4 bg-orange-50 border border-orange-100 rounded-xl space-y-3">
-                                    <h3 class="font-bold text-orange-800 text-sm flex items-center gap-2">
-                                        <i class="fas fa-cloud-sun"></i> 載具串接設定 (財政部電子發票平台)
-                                    </h3>
-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        <div>
-                                            <label class="block text-xs font-semibold text-gray-600 mb-1">手機條碼 (載具)</label>
-                                            <input type="text" id="carrierCardNo" placeholder="例如：/AB12345" class="w-full rounded-lg border-gray-300 border p-2 text-sm outline-none">
-                                        </div>
-                                        <div>
-                                            <label class="block text-xs font-semibold text-gray-600 mb-1">驗證碼 (密碼)</label>
-                                            <input type="password" id="carrierPassword" placeholder="載具登入密碼" class="w-full rounded-lg border-gray-300 border p-2 text-sm outline-none">
-                                        </div>
-                                    </div>
-                                    <div class="flex gap-2">
-                                        <button onclick="fetchCarrierInvoices(false)" class="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2 rounded-lg text-xs transition-all flex items-center justify-center gap-1">
-                                            <i class="fas fa-sync"></i> 載入真實載具 (需CORS)
-                                        </button>
-                                        <button onclick="fetchCarrierInvoices(true)" class="flex-1 bg-orange-100 text-orange-700 hover:bg-orange-200 font-semibold py-2 rounded-lg text-xs transition-all flex items-center justify-center gap-1">
-                                            <i class="fas fa-magic"></i> 智慧模擬載入
-                                        </button>
-                                    </div>
-                                </div>
+                <!-- 月度對比圖表 -->
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="text-xs font-bold text-gray-500 mb-3 text-center">每月平均油耗趨勢 (km/L)</h3>
+                        <div class="relative h-48"><canvas id="chartEconomy"></canvas></div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="text-xs font-bold text-gray-500 mb-3 text-center">每月行駛里程 (km)</h3>
+                        <div class="relative h-48"><canvas id="chartDistance"></canvas></div>
+                    </div>
+                </div>
+            </div>
 
-                                <!-- Carrier Invoice List -->
-                                <div id="carrierInvoicesContainer" class="hidden border border-gray-100 rounded-xl overflow-hidden bg-gray-50">
-                                    <div class="p-3 bg-gray-100 border-b border-gray-200 text-xs font-bold text-gray-700 flex justify-between items-center">
-                                        <span>🔍 最近的加油發票明細</span>
-                                        <span class="text-gray-500 font-normal">點擊即可匯入</span>
-                                    </div>
-                                    <div class="divide-y divide-gray-100 max-h-48 overflow-y-auto" id="carrierListBody">
-                                        <!-- Dynamic items -->
-                                    </div>
-                                </div>
-                            </div>
+            <!-- ========================================== -->
+            <!-- TAB 3: Google Sync (雲端同步) -->
+            <!-- ========================================== -->
+            <div id="tab-sync" class="hidden space-y-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 md:p-6 space-y-5">
+                    <div class="bg-blue-50 text-blue-800 text-xs p-4 rounded-xl leading-relaxed border border-blue-100 flex gap-2.5">
+                        <i class="fab fa-google text-lg mt-0.5 text-blue-600"></i>
+                        <div>
+                            <p class="font-bold text-sm mb-1 text-blue-900">Google Sheets 雲端雙向同步</p>
+                            您的部署 URL 已載入。本系統會將此網址與您的所有紀錄以金融級 AES-256 加密在本地保護，防範外流。
+                        </div>
+                    </div>
 
-                            <!-- 4. 智慧貼上 Tab Content -->
-                            <div id="content-paste" class="hidden space-y-4">
-                                <div class="p-3 bg-purple-50 text-purple-800 text-xs rounded-lg">
-                                    複製發票 App 中的明細內容並在下方貼上，系統將用 AI 規則解析單價、公升與日期。
-                                </div>
-                                <textarea id="pasteArea" rows="4" placeholder="例如：
-中華紙本電子發票 115/05/20
-交易金額：1,098元
-品名：95無鉛汽油 35.20公升 單價31.2" class="w-full rounded-lg border-gray-300 border p-2.5 text-sm outline-none focus:ring-2 focus:ring-primary"></textarea>
-                                <button onclick="parsePastedText()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2.5 rounded-lg transition-all text-sm">
-                                    立即智慧解析
-                                </button>
-                            </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-700 mb-1">您的 Google 網頁部署連結 (Web App URL)</label>
+                        <input type="text" id="syncUrl" value="https://script.google.com/macros/s/AKfycbx4JseSDG74xW7S4-ni_qGDjvgxzfvuB7f3lHEsore2GzMEBchbhStGG7_vwfLS3SDd/exec" placeholder="https://script.google.com/macros/s/.../exec" class="w-full rounded-lg border-gray-300 p-3.5 outline-none focus:border-blue-500 text-sm font-mono bg-gray-50">
+                    </div>
 
-                            <!-- 5. Excel 匯入 Tab Content -->
-                            <div id="content-excel" class="hidden space-y-4">
-                                <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                                    <div class="text-xs text-emerald-800">
-                                        <p class="font-bold mb-1"><i class="fas fa-file-invoice"></i> 支援批次試算表匯入</p>
-                                        <p>您可以直接上傳現有的加油紀錄。我們提供預備好的範例格式。</p>
-                                    </div>
-                                    <button onclick="downloadExcelTemplate()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 px-3 rounded-lg flex items-center gap-1.5 transition-all self-end md:self-auto">
-                                        <i class="fas fa-download"></i> 下載 Excel 範例檔
-                                    </button>
-                                </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button onclick="syncFromGoogle()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors">
+                            <i class="fas fa-cloud-download-alt"></i> 下載覆蓋本地
+                        </button>
+                        <button onclick="syncToGoogle()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors shadow-md">
+                            <i class="fas fa-cloud-upload-alt"></i> 上傳覆蓋雲端
+                        </button>
+                    </div>
+                </div>
 
-                                <!-- Upload Area -->
-                                <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition-all cursor-pointer relative" id="dropzone" onclick="document.getElementById('excelFileInput').click()">
-                                    <input type="file" id="excelFileInput" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
-                                    <i class="fas fa-cloud-upload-alt text-4xl text-emerald-500 mb-2"></i>
-                                    <p class="text-sm font-semibold text-gray-700">點擊上傳或拖曳 Excel/CSV 檔案至此</p>
-                                    <p class="text-xs text-gray-400 mt-1">支援 .xlsx, .xls, .csv 格式</p>
-                                </div>
+                <!-- GAS Code Instruction -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <h3 class="font-bold text-sm mb-2 text-gray-800">🛠️ 最新 Apps Script 程式碼 (支援多工作表自動建立防呆)</h3>
+                    <p class="text-xs text-gray-500 mb-3">請在試算表中貼上此代碼，並部署為「新版本」。程式會自動為您建立 <strong>Car</strong> 與 <strong>Motorcycle</strong> 兩份獨立工作表：</p>
+                    <div class="relative bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-[11px] font-mono leading-tight">
+<pre id="gasCode">function doGet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var result = {
+    car: [],
+    motorcycle: []
+  };
 
-                                <!-- Dynamic Field Mapping Form -->
-                                <div id="excelMappingCard" class="hidden p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-4">
-                                    <h4 class="font-bold text-gray-800 text-xs flex items-center gap-1.5">
-                                        <i class="fas fa-arrows-spin text-emerald-600"></i> 請確認或調整欄位對應 (智慧對應)
-                                    </h4>
-                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-                                        <div>
-                                            <label class="block text-gray-600 font-medium mb-1">加油日期 <span class="text-red-500">*</span></label>
-                                            <select id="map-date" class="w-full p-2 border border-gray-300 rounded bg-white outline-none"></select>
-                                        </div>
-                                        <div>
-                                            <label class="block text-gray-600 font-medium mb-1">當下里程 (km) <span class="text-red-500">*</span></label>
-                                            <select id="map-mileage" class="w-full p-2 border border-gray-300 rounded bg-white outline-none"></select>
-                                        </div>
-                                        <div>
-                                            <label class="block text-gray-600 font-medium mb-1">一公升油價 (元) <span class="text-red-500">*</span></label>
-                                            <select id="map-price" class="w-full p-2 border border-gray-300 rounded bg-white outline-none"></select>
-                                        </div>
-                                        <div>
-                                            <label class="block text-gray-600 font-medium mb-1">加油公升 (L) <span class="text-red-500">*</span></label>
-                                            <select id="map-liters" class="w-full p-2 border border-gray-300 rounded bg-white outline-none"></select>
-                                        </div>
-                                    </div>
-                                    <button onclick="previewMappedExcel()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 rounded-lg transition-all">
-                                        解析並生成數據預覽
-                                    </button>
-                                </div>
-
-                                <!-- Preview Area before committing -->
-                                <div id="excelPreviewCard" class="hidden space-y-3">
-                                    <div class="flex justify-between items-center">
-                                        <span class="text-xs font-bold text-gray-700">🔎 匯入數據預覽 (<span id="excelPreviewCount">0</span> 筆)</span>
-                                        <span class="text-[11px] text-gray-400">* 匯入時會自動與舊數據合併並按日期排序</span>
-                                    </div>
-                                    <div class="overflow-x-auto max-h-48 border border-gray-200 rounded-lg bg-white">
-                                        <table class="w-full text-left text-xs border-collapse">
-                                            <thead class="bg-gray-50 text-gray-600 sticky top-0">
-                                                <tr>
-                                                    <th class="p-2 border-b">日期</th>
-                                                    <th class="p-2 border-b">里程 (km)</th>
-                                                    <th class="p-2 border-b">油價 (元)</th>
-                                                    <th class="p-2 border-b">加油量 (L)</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="excelPreviewTableBody">
-                                                <!-- Rows injected by JS -->
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div class="flex gap-2">
-                                        <button onclick="cancelExcelImport()" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-semibold py-2.5 rounded-lg transition-all">
-                                            取消重新選擇
-                                        </button>
-                                        <button onclick="commitExcelImport()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2.5 rounded-lg transition-all">
-                                            確認匯入
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- 6. Google Sheets 雲端同步 Tab Content -->
-                            <div id="content-google" class="hidden space-y-4">
-                                <div class="bg-red-50 text-red-800 text-xs rounded-xl p-4 border border-red-100 space-y-2">
-                                    <p class="font-bold flex items-center gap-1.5 text-sm">
-                                        <i class="fas fa-cloud-upload-alt text-red-500"></i> Google Sheets (雲端試算表) 同步設定
-                                    </p>
-                                    <p class="leading-relaxed">本網頁可直接與您的 Google 試算表達成<strong>雙向即時同步</strong>。我們不把你的連結暴露在程式碼中，而是使用你剛才設定的「安全密碼」在你的手機本地加密保存。確保駭客或第三方無從得知！</p>
-                                </div>
-
-                                <!-- Sync Form -->
-                                <div class="space-y-3">
-                                    <div>
-                                        <label class="block text-xs font-bold text-gray-600 mb-1">您的 Google 網頁部署連結 (Google Web App URL) <span class="text-xs text-green-600 font-normal">(加密儲存中 🛡️)</span></label>
-                                        <input type="text" id="googleScriptUrl" placeholder="請貼上部署後取得的 Web App URL..." class="w-full rounded-lg border-gray-300 border p-2.5 text-xs outline-none focus:ring-2 focus:ring-red-500">
-                                    </div>
-                                    <div class="grid grid-cols-2 gap-3">
-                                        <button onclick="syncFromGoogle()" class="bg-red-500 hover:bg-red-600 text-white text-xs font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-red-100">
-                                            <i class="fas fa-cloud-download-alt"></i> 從 Google 載入
-                                        </button>
-                                        <button onclick="syncToGoogle()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md shadow-sky-100">
-                                            <i class="fas fa-cloud-upload-alt"></i> 同步至 Google
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <!-- Quick Setup Instructions (Collapsible) -->
-                                <div class="border border-gray-200 rounded-xl overflow-hidden bg-white">
-                                    <button onclick="toggleSetupInstructions()" class="w-full bg-gray-50 hover:bg-gray-100 px-4 py-3 text-xs font-bold text-gray-700 flex justify-between items-center transition-all">
-                                        <span>🛠️ 五分鐘快速串接 Google 雲端教學（點擊展開）</span>
-                                        <i class="fas fa-chevron-down text-gray-500 transition-all transform" id="arrow-setup"></i>
-                                    </button>
-                                    <div id="setup-instructions" class="hidden p-4 text-xs text-gray-600 space-y-3 border-t border-gray-100 leading-relaxed">
-                                        <p class="font-bold text-gray-900">步驟 1：建立試算表</p>
-                                        <p>建立一個全新的「Google 試算表」，並在第一列(標頭)依序填上：<code class="bg-gray-100 px-1 rounded text-red-600">加油日期</code>、<code class="bg-gray-100 px-1 rounded text-red-600">行駛當下里程</code>、<code class="bg-gray-100 px-1 rounded text-red-600">一公升油價</code>、<code class="bg-gray-100 px-1 rounded text-red-600">加油公升數</code>。</p>
-                                        
-                                        <p class="font-bold text-gray-900">步驟 2：開啟擴充指令碼</p>
-                                        <p>在試算表上方選單，點選<strong>「擴充功能」 ➡️ 「Apps Script」</strong>。</p>
-                                        
-                                        <p class="font-bold text-gray-900">步驟 3：貼上連接程式碼</p>
-                                        <p>清空裡面原有的程式碼，複製並貼上下方這段程式碼：</p>
-                                        
-                                        <div class="relative bg-gray-800 text-gray-200 rounded-lg p-3 overflow-x-auto font-mono text-[10px]">
-                                            <pre id="appsScriptCode">function doGet() {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var data = sheet.getDataRange().getValues();
-  var result = [];
-  for (var i = 1; i &lt; data.length; i++) {
-    var row = data[i];
-    if(!row[0]) continue;
-    var rawDate = row[0];
-    var formattedDate = "";
-    
-    // 使用 Apps Script 原生 API 進行超強固日期解析
-    var d = new Date(rawDate);
-    if (!isNaN(d.getTime())) {
-      formattedDate = Utilities.formatDate(d, Session.getScriptTimeZone() || "GMT+8", "yyyy-MM-dd");
-    } else {
-      var strDate = String(rawDate);
-      if (strDate.indexOf('T') !== -1 &amp;&amp; strDate.indexOf('GMT') === -1) {
-        formattedDate = strDate.split('T')[0];
-      } else {
-        formattedDate = strDate;
-      }
-    }
-    
-    result.push({
-      date: formattedDate,
-      mileage: Number(row[1]),
-      price: Number(row[2]),
-      liters: Number(row[3])
+  //---------------------------------
+  // 汽車分頁處理 (無工作表時自動新增)
+  //---------------------------------
+  var carSheet = ss.getSheetByName("Car");
+  if (!carSheet) {
+    carSheet = ss.insertSheet("Car");
+    carSheet.appendRow(["DATE","N.KM","NT/L","L"]);
+  }
+  var carValues = carSheet.getDataRange().getDisplayValues(); 
+  for (var i = 1; i < carValues.length; i++) {
+    if(!carValues[i][0] && !carValues[i][1]) continue;
+    result.car.push({
+      id: generateUUID(),
+      date: String(carValues[i][0]).trim(),
+      mileage: Number(String(carValues[i][1]).replace(/[^0-9.-]/g, '')) || 0,
+      price: Number(String(carValues[i][2]).replace(/[^0-9.-]/g, '')) || 0,
+      liters: Number(String(carValues[i][3]).replace(/[^0-9.-]/g, '')) || 0
     });
   }
-  return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
+
+  //---------------------------------
+  // 機車分頁處理 (無工作表時自動新增)
+  //---------------------------------
+  var motorSheet = ss.getSheetByName("Motorcycle");
+  if (!motorSheet) {
+    motorSheet = ss.insertSheet("Motorcycle");
+    motorSheet.appendRow(["DATE","N.KM","NT/L","L"]);
+  }
+  var motorValues = motorSheet.getDataRange().getDisplayValues(); 
+  for (var i = 1; i < motorValues.length; i++) {
+    if(!motorValues[i][0] && !motorValues[i][1]) continue;
+    result.motorcycle.push({
+      id: generateUUID(),
+      date: String(motorValues[i][0]).trim(),
+      mileage: Number(String(motorValues[i][1]).replace(/[^0-9.-]/g, '')) || 0,
+      price: Number(String(motorValues[i][2]).replace(/[^0-9.-]/g, '')) || 0,
+      liters: Number(String(motorValues[i][3]).replace(/[^0-9.-]/g, '')) || 0
+    });
+  }
+
+  return ContentService.createTextOutput(JSON.stringify(result))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  sheet.clearContents();
-  sheet.appendRow(["加油日期", "行駛當下里程", "一公升油價", "加油公升數"]);
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
   var payload = JSON.parse(e.postData.contents);
-  for (var i = 0; i &lt; payload.length; i++) {
-    var r = payload[i];
-    sheet.appendRow([r.date, r.mileage, r.price, r.liters]);
+
+  //---------------------------------
+  // 汽車資料覆蓋
+  //---------------------------------
+  var carSheet = ss.getSheetByName("Car");
+  if (!carSheet) {
+    carSheet = ss.insertSheet("Car");
   }
-  return ContentService.createTextOutput(JSON.stringify({status: "success"}))
-    .setMimeType(ContentService.MimeType.JSON)
-    .setHeaders({"Access-Control-Allow-Origin": "*"});
+  carSheet.clearContents();
+  
+  var carData = [["DATE","N.KM","NT/L","L"]];
+  if (payload && payload.car && Array.isArray(payload.car)) {
+    payload.car.forEach(function(r) {
+      carData.push([
+        String(r.date || "").trim(), 
+        Number(r.mileage || 0), 
+        Number(r.price || 0), 
+        Number(r.liters || 0)
+      ]);
+    });
+  }
+  carSheet.getRange(1, 1, carData.length, 4).setValues(carData);
+
+  //---------------------------------
+  // 機車資料覆蓋
+  //---------------------------------
+  var motorSheet = ss.getSheetByName("Motorcycle");
+  if (!motorSheet) {
+    motorSheet = ss.insertSheet("Motorcycle");
+  }
+  motorSheet.clearContents();
+  
+  var motorData = [["DATE","N.KM","NT/L","L"]];
+  if (payload && payload.motorcycle && Array.isArray(payload.motorcycle)) {
+    payload.motorcycle.forEach(function(r) {
+      motorData.push([
+        String(r.date || "").trim(), 
+        Number(r.mileage || 0), 
+        Number(r.price || 0), 
+        Number(r.liters || 0)
+      ]);
+    });
+  }
+  motorSheet.getRange(1, 1, motorData.length, 4).setValues(motorData);
+
+  return ContentService.createTextOutput(JSON.stringify({
+    success: true,
+    carCount: payload && payload.car ? payload.car.length : 0,
+    motorcycleCount: payload && payload.motorcycle ? payload.motorcycle.length : 0
+  }))
+  .setMimeType(ContentService.MimeType.JSON);
+}
+
+// 智慧 UUID 生成輔助函數
+function generateUUID() {
+  try {
+    return Utilities.getUuid();
+  } catch(e) {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
 }</pre>
-                                            <button onclick="copyAppsScript()" class="absolute top-2 right-2 bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded text-[10px] transition-all">
-                                                <i class="fas fa-copy"></i> 複製代碼
-                                            </button>
-                                        </div>
-
-                                        <p class="font-bold text-gray-900">步驟 4：部署為網頁應用程式</p>
-                                        <p>點選右上角<strong>「部署」➡️「新增部署」</strong>。在左上角齒輪選擇<strong>「網頁應用程式」</strong>，並確保設定：<br>
-                                        • 執行身分：<strong>「我」 (Me)</strong><br>
-                                        • 誰有權限存取：<strong>「任何人」 (Anyone)</strong>。<br>
-                                        點擊部署，並在彈出的授權中允許存取試算表。複製最後生成的<strong>「網頁應用程式 URL」</strong>，貼到最上方的輸入框即可完成！</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </div>
+                        <button onclick="copyCode()" class="absolute top-2 right-2 bg-gray-700 text-white px-2.5 py-1 rounded text-xs hover:bg-gray-600">複製</button>
                     </div>
-
-                </div>
-
-                <!-- Right Panel: Current Tank Statistics (5 Cols) -->
-                <div class="lg:col-span-5 space-y-6">
-                    <!-- Statistics Card -->
-                    <div class="bg-gradient-to-br from-primary to-sky-600 text-white rounded-2xl shadow-lg p-6 space-y-6">
-                        <h3 class="text-lg font-semibold flex items-center gap-2"><i class="fas fa-chart-pie"></i> 當前愛車狀態</h3>
-                        
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="bg-white bg-opacity-10 rounded-xl p-4">
-                                <p class="text-xs text-sky-100">平均油耗 (最新一筆)</p>
-                                <p class="text-2xl font-bold mt-1"><span id="statLatestEco">---</span> <span class="text-xs">km/L</span></p>
-                            </div>
-                            <div class="bg-white bg-opacity-10 rounded-xl p-4">
-                                <p class="text-xs text-sky-100">累計加油量</p>
-                                <p class="text-2xl font-bold mt-1"><span id="statTotalLiters">0.00</span> <span class="text-xs">L</span></p>
-                            </div>
-                            <div class="bg-white bg-opacity-10 rounded-xl p-4">
-                                <p class="text-xs text-sky-100">累計行駛里程</p>
-                                <p class="text-2xl font-bold mt-1"><span id="statTotalDistance">0</span> <span class="text-xs">km</span></p>
-                            </div>
-                            <div class="bg-white bg-opacity-10 rounded-xl p-4">
-                                <p class="text-xs text-sky-100">平均每公升單價</p>
-                                <p class="text-2xl font-bold mt-1"><span id="statAvgPrice">0.0</span> <span class="text-xs">元</span></p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Fast Mile Logger -->
-                    <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                        <h3 class="font-bold text-gray-800 text-sm mb-2 flex items-center gap-1">
-                            <i class="fas fa-tachometer-alt text-gray-500"></i> 計算器小提示
-                        </h3>
-                        <p class="text-xs text-gray-500 leading-relaxed">
-                            平均油耗的計算方式為「(本次加油里程 - 上次加油里程) ÷ 本次加油公升數」。因此，系統至少需要有<strong>兩筆以上</strong>的加油里程數據，才能為您精準呈現平均油耗喔！
-                        </p>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- History Section (Full Width Table) -->
-            <div class="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-                <div class="flex justify-between items-center mb-4 border-b pb-4">
-                    <h2 class="text-xl font-semibold text-gray-800"><i class="fas fa-chart-line mr-2"></i>加油歷史紀錄</h2>
-                    <button onclick="triggerClearAll()" class="text-xs text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg border border-red-200 transition-all font-medium">
-                        <i class="fas fa-trash-alt mr-1"></i> 清空全部
-                    </button>
-                </div>
-                
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-gray-50 text-gray-600 text-sm">
-                                <th class="p-4 font-semibold rounded-tl-lg">日期</th>
-                                <th class="p-4 font-semibold">行駛里程 (km)</th>
-                                <th class="p-4 font-semibold">一公升油價</th>
-                                <th class="p-4 font-semibold">加油公升數</th>
-                                <th class="p-4 font-semibold">單次消費金額</th>
-                                <th class="p-4 font-semibold text-primary">平均油耗 (km/L)</th>
-                                <th class="p-4 font-semibold rounded-tr-lg">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="recordTableBody" class="divide-y divide-gray-100">
-                            <!-- Records will be injected here -->
-                        </tbody>
-                    </table>
-                    
-                    <!-- Empty State -->
-                    <div id="emptyState" class="hidden flex-col items-center justify-center py-12 text-gray-400">
-                        <i class="fas fa-folder-open text-4xl mb-3"></i>
-                        <p class="font-medium">目前還沒有任何紀錄喔！</p>
-                        <p class="text-xs mt-1">請手動新增一筆，或利用「雲端同步」與「Excel匯入」載入歷史明細！</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- ======================================================= -->
-        <!-- SECTION 2: ANALYSIS TAB (統計分析) -->
-        <!-- ======================================================= -->
-        <div id="section-analysis" class="hidden space-y-6">
-            
-            <!-- Filter & Summary Row -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex flex-col md:flex-row gap-6 justify-between items-start md:items-center">
-                <div>
-                    <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-                        <i class="fas fa-calendar-alt text-primary"></i> 年度比較篩選
-                    </h2>
-                    <p class="text-xs text-gray-500 mt-1">切換不同年份，比較 12 個月的加油量、油耗及花費變化</p>
-                </div>
-                <div class="flex items-center gap-2 w-full md:w-auto">
-                    <label class="text-sm font-semibold text-gray-600 whitespace-nowrap">選擇年份：</label>
-                    <select id="analysisYearSelect" onchange="updateAnalysisData()" class="rounded-lg border-gray-300 border p-2 text-sm focus:ring-2 focus:ring-primary outline-none transition-all w-full md:w-36 bg-white">
-                        <!-- Options generated dynamically -->
-                    </select>
-                </div>
-            </div>
-
-            <!-- Annual Metric Cards -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex flex-col justify-between">
-                    <span class="text-xs text-gray-400 font-semibold">年度總加油量</span>
-                    <span class="text-2xl font-bold text-gray-800 mt-2"><span id="yearTotalLiters">0.0</span> <span class="text-xs text-gray-500">L</span></span>
-                </div>
-                <div class="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex flex-col justify-between">
-                    <span class="text-xs text-gray-400 font-semibold">年度總耗資</span>
-                    <span class="text-2xl font-bold text-orange-600 mt-2"><span id="yearTotalCost">0</span> <span class="text-xs text-gray-500">元</span></span>
-                </div>
-                <div class="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex flex-col justify-between">
-                    <span class="text-xs text-gray-400 font-semibold">年度總行駛距離</span>
-                    <span class="text-2xl font-bold text-gray-800 mt-2"><span id="yearTotalDistance">0</span> <span class="text-xs text-gray-500">km</span></span>
-                </div>
-                <div class="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex flex-col justify-between">
-                    <span class="text-xs text-gray-400 font-semibold">年度平均油耗</span>
-                    <span class="text-2xl font-bold text-primary mt-2"><span id="yearAvgEconomy">0.0</span> <span class="text-xs text-gray-500">km/L</span></span>
-                </div>
-            </div>
-
-            <!-- Charts Container -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Chart 1: Gas Liters & Price Trend -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
-                    <h3 class="font-bold text-gray-800 text-sm flex items-center gap-1.5 border-b pb-2">
-                        <i class="fas fa-chart-bar text-primary"></i> 每月油量與油價趨勢比較
-                    </h3>
-                    <div class="relative w-full aspect-[4/3] md:aspect-[16/10]">
-                        <canvas id="oilTrendChart"></canvas>
-                    </div>
-                    <p class="text-[10px] text-gray-400 leading-relaxed text-center">
-                        * 藍色直條圖代表當月加油總公升數 (L)，橙色折線代表當月平均加油單價 (元)
-                    </p>
-                </div>
-
-                <!-- Chart 2: Fuel Economy Trend -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
-                    <h3 class="font-bold text-gray-800 text-sm flex items-center gap-1.5 border-b pb-2">
-                        <i class="fas fa-chart-line text-emerald-500"></i> 每月平均油耗變化趨勢
-                    </h3>
-                    <div class="relative w-full aspect-[4/3] md:aspect-[16/10]">
-                        <canvas id="economyChart"></canvas>
-                    </div>
-                    <p class="text-[10px] text-gray-400 leading-relaxed text-center">
-                        * 綠色折線代表當月車輛平均每公升可行駛公里數 (km/L)，數值越高代表越省油
-                    </p>
-                </div>
-            </div>
-
-            <!-- Monthly Analysis Table -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 overflow-hidden">
-                <h3 class="font-bold text-gray-800 text-base mb-4 border-b pb-3 flex items-center gap-2">
-                    <i class="fas fa-table text-primary"></i> <span id="analysisTableTitle">2026</span> 年度 1 ~ 12 月細部對比表
-                </h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-gray-50 text-gray-600 text-xs">
-                                <th class="p-3.5 font-bold rounded-tl-lg">月份</th>
-                                <th class="p-3.5 font-bold">總加油公升 (L)</th>
-                                <th class="p-3.5 font-bold">平均油價 (元)</th>
-                                <th class="p-3.5 font-bold">當月總花費 (元)</th>
-                                <th class="p-3.5 font-bold">累計行駛里程 (km)</th>
-                                <th class="p-3.5 font-bold text-primary rounded-tr-lg">平均油耗 (km/L)</th>
-                            </tr>
-                        </thead>
-                        <tbody id="analysisTableBody" class="divide-y divide-gray-100 text-sm">
-                            <!-- Dynamic generated rows for Month 1-12 -->
-                        </tbody>
-                    </table>
                 </div>
             </div>
 
@@ -652,86 +386,95 @@ function doPost(e) {
     </div>
 
     <!-- ======================================================= -->
-    <!-- 💬 SECURE CONFIRM DIALOG MODAL (安全確認彈出框) -->
+    <!-- MODAL (全域提示與確認動作框) -->
     <!-- ======================================================= -->
-    <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl transform scale-100">
-            <div class="text-center">
-                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 text-red-600 mb-4">
-                    <i class="fas fa-exclamation-triangle text-xl"></i>
-                </div>
-                <h3 class="text-lg font-bold text-gray-900 mb-2" id="confirmTitle">確認動作</h3>
-                <p class="text-sm text-gray-500 mb-6 leading-relaxed" id="confirmMessage">您確定要執行此操作嗎？動作將無法復原。</p>
-                <div class="flex gap-3">
-                    <button onclick="closeConfirmModal(false)" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl py-2.5 font-semibold transition-colors">取消</button>
-                    <button onclick="closeConfirmModal(true)" class="flex-1 bg-red-600 hover:bg-red-700 text-white rounded-xl py-2.5 font-semibold transition-colors">確定</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Custom Modal for Notifications -->
-    <div id="notificationModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 p-4">
-        <div class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl transform transition-all scale-95 opacity-0" id="modalContent">
-            <div class="text-center">
-                <div id="modalIcon" class="mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4">
-                    <!-- Icon injected via JS -->
-                </div>
-                <h3 class="text-lg font-bold text-gray-900 mb-2" id="modalTitle">通知</h3>
-                <p class="text-sm text-gray-600 mb-6 leading-relaxed" id="modalMessage">訊息內容</p>
-                <button onclick="closeModal()" class="w-full bg-primary text-white rounded-lg px-4 py-2.5 font-semibold hover:bg-sky-600 transition-colors">確定</button>
+    <div id="sysModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center z-50 p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 text-center transform scale-95 transition-transform duration-300 shadow-2xl" id="sysModalContent">
+            <div id="sysModalIcon" class="mx-auto flex items-center justify-center h-14 w-14 rounded-full mb-4 text-2xl"></div>
+            <h3 id="sysModalTitle" class="text-xl font-bold text-gray-900 mb-2">提示</h3>
+            <p id="sysModalBody" class="text-sm text-gray-500 mb-6 leading-relaxed">訊息內容</p>
+            <div id="sysModalActions" class="flex gap-3 justify-center">
+                <button onclick="closeModal()" class="w-full bg-gray-900 text-white py-3 rounded-xl font-bold">確定</button>
             </div>
         </div>
     </div>
 
     <script>
-        // 密碼安全核心變數
+        /* ==========
+           核心狀態
+        ========== */
+        const STORAGE_KEY = 'gasRecords_v4_secure';
+        let currentVehicle = "car";
         let masterPassword = "";
-        let records = [];
-        let html5QrcodeScanner = null;
-        let oilTrendChartInstance = null;
-        let economyChartInstance = null;
+        let records = {
+            car: [],
+            motorcycle: []
+        };
+        let chartEco = null;
+        let chartDist = null;
 
-        // 確認視窗暫存回呼函式
-        let confirmCallback = null;
+        // 全域提示框
+        function showModal(title, msg, type = 'info', confirmCallback = null) {
+            const modal = document.getElementById('sysModal');
+            const content = document.getElementById('sysModalContent');
+            const icon = document.getElementById('sysModalIcon');
+            const actions = document.getElementById('sysModalActions');
+            
+            document.getElementById('sysModalTitle').innerText = title;
+            document.getElementById('sysModalBody').innerHTML = msg.replace(/\n/g, '<br>');
 
-        // 預設將日期設定為今天
-        document.getElementById('date').valueAsDate = new Date();
+            if (type === 'success') {
+                icon.className = 'mx-auto flex items-center justify-center h-14 w-14 rounded-full mb-4 text-2xl bg-green-100 text-green-500';
+                icon.innerHTML = '<i class="fas fa-check"></i>';
+            } else if (type === 'warning' || type === 'error') {
+                icon.className = 'mx-auto flex items-center justify-center h-14 w-14 rounded-full mb-4 text-2xl bg-red-100 text-red-500';
+                icon.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+            } else {
+                icon.className = 'mx-auto flex items-center justify-center h-14 w-14 rounded-full mb-4 text-2xl bg-blue-100 text-blue-500';
+                icon.innerHTML = '<i class="fas fa-info animate-bounce"></i>';
+            }
 
-        // 偵測、修復並標準化不合規日期為 YYYY-MM-DD
-        function parseAndFormatDate(dateStr) {
-            if (!dateStr) {
-                const today = new Date();
-                return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            if (confirmCallback) {
+                actions.innerHTML = `
+                    <button onclick="closeModal()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold">取消</button>
+                    <button onclick="document.getElementById('sysModal').confirmAction()" class="flex-1 bg-red-500 text-white py-3 rounded-xl font-bold">確定執行</button>
+                `;
+                modal.confirmAction = () => { confirmCallback(); closeModal(); };
+            } else {
+                actions.innerHTML = `<button onclick="closeModal()" class="w-full bg-gray-900 text-white py-3 rounded-xl font-bold">確定</button>`;
             }
-            let s = String(dateStr).trim();
-            
-            // 🔴 核心修復：還原被錯誤切割 'GMT' 時切掉的 'T'
-            if (s.endsWith(" GM")) {
-                s += "T"; // 補回 'T' 變成 GMT
-            }
-            
-            // 如果已經是標準格式 YYYY-MM-DD 則直接回傳
-            if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-                return s;
-            }
-            
-            const parsed = new Date(s);
-            if (!isNaN(parsed.getTime())) {
-                const y = parsed.getFullYear();
-                const m = String(parsed.getMonth() + 1).padStart(2, '0');
-                const d = String(parsed.getDate()).padStart(2, '0');
-                return `${y}-${m}-${d}`;
-            }
-            
-            // 終極防呆：如格式依然無法識別，改用今日日期避免 NaN 導致排序與油耗計算系統崩潰
-            const today = new Date();
-            return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+            }, 10);
         }
 
-        // 檢查是否已有密碼設定，並執行智慧自動解鎖
+        function closeModal() {
+            const modal = document.getElementById('sysModal');
+            const content = document.getElementById('sysModalContent');
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }, 300);
+        }
+
+        function copyCode() {
+            navigator.clipboard.writeText(document.getElementById('gasCode').innerText)
+                .then(() => showModal('複製成功', '程式碼已複製，請貼上至 Google Apps Script', 'success'));
+        }
+
+        /* =========================================
+           🔒 智慧解鎖與自動登入防護
+        ========================================= */
         window.addEventListener('DOMContentLoaded', () => {
-            const hasPass = localStorage.getItem('secureKey_configured');
+            document.getElementById('date').valueAsDate = new Date();
+            
+            const hasPass = localStorage.getItem('secureKey_v4_configured');
             const lockTitle = document.getElementById('lockScreenTitle');
             const lockDesc = document.getElementById('lockScreenDesc');
             const confirmWrapper = document.getElementById('setConfirmPasswordWrapper');
@@ -741,1101 +484,603 @@ function doPost(e) {
                 lockDesc.innerText = "本系統數據已由 AES-256 全程加密。請輸入密碼以解密並載入您的加油油耗紀錄。";
                 confirmWrapper.classList.add('hidden');
                 
-                // 🔴 信任裝置：智慧自動解鎖偵測
-                const savedPassEncrypted = localStorage.getItem('autoUnlock_key');
+                // 檢查是否信任此裝置
+                const savedPassEncrypted = localStorage.getItem('autoUnlock_v4_key');
                 if (savedPassEncrypted) {
                     try {
-                        const decryptedPass = CryptoJS.AES.decrypt(savedPassEncrypted, "device_salt_9823").toString(CryptoJS.enc.Utf8);
+                        const decryptedPass = CryptoJS.AES.decrypt(savedPassEncrypted, "device_salt_v4").toString(CryptoJS.enc.Utf8);
                         if (decryptedPass) {
                             masterPassword = decryptedPass;
-                            const decryptedRecords = loadDecryptedData();
-                            if (decryptedRecords !== null) {
-                                records = decryptedRecords;
+                            if (loadLocalData()) {
                                 enterApp();
-                                
-                                setTimeout(() => {
-                                    showModal("信任裝置自動解鎖 🔓", "已偵測到信任裝置，自動完成 AES-256 安全解密與智慧修復！", "success");
-                                }, 600);
-                                return; 
+                                setTimeout(() => showModal("自動解鎖成功 🔓", "已偵測到信任裝置，自動完成 AES-256 安全解密！", "success"), 500);
+                                return;
                             }
                         }
                     } catch (e) {
-                        console.error("Auto unlock failed", e);
-                        localStorage.removeItem('autoUnlock_key');
+                        localStorage.removeItem('autoUnlock_v4_key'); 
                     }
                 }
             } else {
                 lockTitle.innerText = "設定安全解鎖密碼";
-                lockDesc.innerText = "這是您第一次使用。請自訂一個解鎖密碼，此密碼將用來加密你本地所有的加油數據、雲端網址，絕不外洩。";
+                lockDesc.innerText = "請自訂一個解鎖密碼，此密碼將用來加密您本地所有的加油數據與雲端網址，絕不外洩。";
                 confirmWrapper.classList.remove('hidden');
             }
         });
 
-        // ========================================================
-        // 🛡️ 密碼與解鎖安全解密引擎
-        // ========================================================
-
-        // 解鎖/設定密碼處理
         function handleUnlock() {
             const passInput = document.getElementById('masterPasswordInput').value;
             const confirmInput = document.getElementById('masterPasswordConfirmInput').value;
-            const hasPass = localStorage.getItem('secureKey_configured') === 'true';
+            const hasPass = localStorage.getItem('secureKey_v4_configured') === 'true';
 
-            if (!passInput) {
-                showModal("提示", "安全密碼不能留空喔！", "warning");
-                return;
-            }
+            if (!passInput) return showModal("提示", "安全密碼不能留空喔！", "warning");
 
             if (!hasPass) {
-                if (passInput !== confirmInput) {
-                    showModal("密碼不一致", "兩次輸入的密碼不相同，請重新確認！", "warning");
-                    return;
-                }
+                if (passInput !== confirmInput) return showModal("密碼不一致", "兩次輸入的密碼不相同，請重新確認！", "warning");
                 
-                localStorage.setItem('secureKey_configured', 'true');
+                localStorage.setItem('secureKey_v4_configured', 'true');
                 masterPassword = passInput;
                 
-                const rememberDevice = document.getElementById('rememberDeviceInput').checked;
-                if (rememberDevice) {
-                    const encryptedPass = CryptoJS.AES.encrypt(masterPassword, "device_salt_9823").toString();
-                    localStorage.setItem('autoUnlock_key', encryptedPass);
+                if (document.getElementById('rememberDeviceInput').checked) {
+                    localStorage.setItem('autoUnlock_v4_key', CryptoJS.AES.encrypt(masterPassword, "device_salt_v4").toString());
                 }
 
-                saveEncryptedData([]);
+                // 初始化加密儲存
+                saveLocalData();
                 enterApp();
+                showModal("密碼設定成功", "密碼設定完成！您所有的加油數據往後都將受到金融級 AES-256 強制加密防護。", "success");
             } else {
                 masterPassword = passInput;
-                const decryptedRecords = loadDecryptedData();
-                
-                if (decryptedRecords === null) {
+                if (!loadLocalData()) {
                     showModal("密碼錯誤 ❌", "密碼不正確或無法解密資料庫。請再試一次！", "warning");
                     masterPassword = "";
                 } else {
-                    records = decryptedRecords;
-                    
-                    const rememberDevice = document.getElementById('rememberDeviceInput').checked;
-                    if (rememberDevice) {
-                        const encryptedPass = CryptoJS.AES.encrypt(masterPassword, "device_salt_9823").toString();
-                        localStorage.setItem('autoUnlock_key', encryptedPass);
+                    if (document.getElementById('rememberDeviceInput').checked) {
+                        localStorage.setItem('autoUnlock_v4_key', CryptoJS.AES.encrypt(masterPassword, "device_salt_v4").toString());
                     } else {
-                        localStorage.removeItem('autoUnlock_key');
+                        localStorage.removeItem('autoUnlock_v4_key');
                     }
-
                     enterApp();
                 }
             }
         }
 
-        // 成功進入應用程式
         function enterApp() {
             document.getElementById('lockScreen').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden');
             
-            const encryptedUrl = localStorage.getItem('googleScriptUrl_encrypted');
+            // 嘗試載入專屬自訂的 URL
+            const encryptedUrl = localStorage.getItem('syncUrl_v4_encrypted');
             if (encryptedUrl) {
                 try {
-                    const decryptedUrl = CryptoJS.AES.decrypt(encryptedUrl, masterPassword).toString(CryptoJS.enc.Utf8);
-                    if (decryptedUrl) {
-                        document.getElementById('googleScriptUrl').value = decryptedUrl;
-                    }
-                } catch(e) {
-                    console.log("No valid encrypted URL found.");
-                }
+                    const decUrl = CryptoJS.AES.decrypt(encryptedUrl, masterPassword).toString(CryptoJS.enc.Utf8);
+                    if(decUrl) document.getElementById('syncUrl').value = decUrl;
+                } catch(e) {}
             }
-
-            // 🔴 解鎖時強制啟用資料清洗與修復，保障舊資料無痛修正
-            sanitizeAllRecordDates();
-            sortRecords();
-            renderTableAndStats();
+            updateUI();
         }
 
-        // 安全上鎖
         function lockApp() {
-            localStorage.removeItem('autoUnlock_key');
+            localStorage.removeItem('autoUnlock_v4_key'); // 上鎖時移除自動登入
             masterPassword = "";
-            records = [];
+            records = { car: [], motorcycle: [] };
             document.getElementById('masterPasswordInput').value = "";
             document.getElementById('masterPasswordConfirmInput').value = "";
             document.getElementById('rememberDeviceInput').checked = false;
             document.getElementById('lockScreen').classList.remove('hidden');
             document.getElementById('mainApp').classList.add('hidden');
-            stopScanning();
         }
 
-        // AES-256 加密存檔
-        function saveEncryptedData(dataArray) {
+        /* =========================================
+           AES 本地加解密讀存
+        ========================================= */
+        function saveLocalData() {
             if (!masterPassword) return;
-            const rawJson = JSON.stringify(dataArray);
-            const ciphertext = CryptoJS.AES.encrypt(rawJson, masterPassword).toString();
-            localStorage.setItem('gasRecords_encrypted', ciphertext);
+            const encrypted = CryptoJS.AES.encrypt(JSON.stringify(records), masterPassword).toString();
+            localStorage.setItem(STORAGE_KEY, encrypted);
         }
 
-        // AES-256 解密讀檔
-        function loadDecryptedData() {
-            if (!masterPassword) return null;
-            const ciphertext = localStorage.getItem('gasRecords_encrypted');
-            if (!ciphertext) return [];
-
+        // 🟢 修復：加載資料後自動重算與更新表格
+        function loadLocalData() {
+            if (!masterPassword) return false;
+            const encrypted = localStorage.getItem(STORAGE_KEY);
+            if (!encrypted) {
+                // 嘗試搬移舊版 (若有)
+                migrateOldData();
+                return true;
+            }
             try {
-                const bytes = CryptoJS.AES.decrypt(ciphertext, masterPassword);
+                const bytes = CryptoJS.AES.decrypt(encrypted, masterPassword);
                 const decryptedStr = bytes.toString(CryptoJS.enc.Utf8);
-                if (!decryptedStr) return null;
-                return JSON.parse(decryptedStr);
+                if (!decryptedStr) return false;
+                records = JSON.parse(decryptedStr);
+                return true;
             } catch (err) {
-                return null;
+                return false;
             }
         }
 
-
-        // ==========================================
-        // 🔄 智慧資料清洗與排序引擎
-        // ==========================================
-
-        // 🔴 清洗並修復所有紀錄日期，防範 Invalid Date 與 GMT Chopping Bug 殘留
-        function sanitizeAllRecordDates() {
-            let modified = false;
-            records = records.map(r => {
-                const cleaned = parseAndFormatDate(r.date);
-                if (cleaned !== r.date) {
-                    r.date = cleaned;
-                    modified = true;
+        function migrateOldData() {
+            const oldData = localStorage.getItem('fuelProV2'); // v2 舊儲存區
+            const legacyData = localStorage.getItem('gasRecords'); // 最古老儲存區
+            
+            if (oldData) {
+                try {
+                    const bytes = CryptoJS.AES.decrypt(oldData, masterPassword);
+                    const dec = bytes.toString(CryptoJS.enc.Utf8);
+                    if (dec) records = JSON.parse(dec);
+                    localStorage.removeItem('fuelProV2');
+                } catch(e){}
+            } else if (legacyData) {
+                const parsed = JSON.parse(legacyData);
+                if (Array.isArray(parsed)) {
+                    records.car = parsed;
                 }
-                // 轉型數值清洗防呆
+                localStorage.removeItem('gasRecords');
+            }
+        }
+
+        /* =========================================
+           載具切換 & 標籤頁切換
+        ========================================= */
+        function setVehicle(type) {
+            currentVehicle = type;
+            const btnCar = document.getElementById('btnCar');
+            const btnMotor = document.getElementById('btnMotor');
+            const headerIcon = document.getElementById('header-icon');
+            
+            btnCar.className = "px-5 py-2.5 rounded-full text-sm font-bold transition-all flex-1 md:flex-initial flex items-center justify-center gap-2 text-gray-500 hover:text-gray-800";
+            btnMotor.className = "px-5 py-2.5 rounded-full text-sm font-bold transition-all flex-1 md:flex-initial flex items-center justify-center gap-2 text-gray-500 hover:text-gray-800";
+
+            if (type === 'car') {
+                btnCar.className = "tab-btn vehicle-active active-car px-6 py-2.5 rounded-full text-sm font-bold transition-all flex-1 md:flex-initial flex items-center justify-center gap-2";
+                document.getElementById('input-title').innerHTML = '<i class="fas fa-car text-blue-600"></i> 新增紀錄';
+                document.getElementById('history-vehicle-name').innerText = '汽車';
+                headerIcon.className = "fas fa-gas-pump text-blue-600";
+            } else {
+                btnMotor.className = "tab-btn vehicle-active active-motor px-6 py-2.5 rounded-full text-sm font-bold transition-all flex-1 md:flex-initial flex items-center justify-center gap-2";
+                document.getElementById('input-title').innerHTML = '<i class="fas fa-motorcycle text-emerald-500"></i> 新增紀錄';
+                document.getElementById('history-vehicle-name').innerText = '機車';
+                headerIcon.className = "fas fa-gas-pump text-emerald-500";
+            }
+            updateUI();
+        }
+
+        function switchTab(tabId) {
+            ['input', 'analysis', 'sync'].forEach(t => {
+                document.getElementById(`tab-${t}`).style.display = (t === tabId) ? 'block' : 'none';
+                const btn = document.getElementById(`nav-${t}`);
+                if (t === tabId) {
+                    btn.classList.add('active');
+                    btn.classList.remove('text-gray-600');
+                } else {
+                    btn.classList.remove('active');
+                    btn.classList.add('text-gray-600');
+                }
+            });
+            if (tabId === 'analysis') updateAnalysisOptions();
+        }
+
+        function updateUI() {
+            renderTableAndStats();
+            if (document.getElementById('tab-analysis').style.display === 'block') {
+                updateAnalysisOptions();
+            }
+        }
+
+        /* =========================================
+           📅 智慧型日期格式化處理
+        ========================================= */
+        function cleanDate(dStr) {
+            if (!dStr) return "";
+            let s = String(dStr).trim();
+            if (s.endsWith(" GM")) s += "T"; // Patch apps script format bug
+
+            // 1. 處理帶 T 的 ISO 格式 (解決 2026-04-20T16:00:00Z 減一天 Bug)
+            if (s.includes('T')) {
+                const parsed = new Date(s);
+                if (!isNaN(parsed.getTime())) {
+                    const y = parsed.getFullYear();
+                    const m = String(parsed.getMonth() + 1).padStart(2, '0');
+                    const d = String(parsed.getDate()).padStart(2, '0');
+                    return `${y}-${m}-${d}`;
+                }
+            }
+
+            // 2. YYYY/MM/DD, YYYY.MM.DD
+            let m1 = s.match(/^(\d{4})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})/);
+            if (m1) {
+                return `${m1[1]}-${m1[2].padStart(2, '0')}-${m1[3].padStart(2, '0')}`;
+            }
+
+            // 3. 民國年 114/09/27 or 114-09-27
+            let m2 = s.match(/^(\d{2,3})[\/\.\-](\d{1,2})[\/\.\-](\d{1,2})/);
+            if (m2) {
+                let year = parseInt(m2[1]);
+                if (year < 1000) year += 1911;
+                return `${year}-${m2[2].padStart(2, '0')}-${m2[3].padStart(2, '0')}`;
+            }
+
+            // 4. 無年份格式：4/21, 5/5, 04-30 (自動帶入今年，防範穿越到2021或2005年)
+            let noYearMatch = s.match(/^(\d{1,2})[\/\.\-](\d{1,2})$/);
+            if (noYearMatch) {
+                const y = new Date().getFullYear();
+                return `${y}-${noYearMatch[1].padStart(2, '0')}-${noYearMatch[2].padStart(2, '0')}`;
+            }
+
+            // 5. 中文日期：2025年9月27日 或 民國114年9月27日
+            let zhMatch = s.match(/(?:民國)?(\d{2,4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+            if (zhMatch) {
+                let year = parseInt(zhMatch[1]);
+                if (year < 1000) year += 1911;
+                return `${year}-${zhMatch[2].padStart(2, '0')}-${zhMatch[3].padStart(2, '0')}`;
+            }
+
+            // 6. 原生 Date 解析
+            let dt = new Date(s);
+            if (!isNaN(dt.getTime())) {
+                const y = dt.getFullYear();
+                const m = String(dt.getMonth() + 1).padStart(2, '0');
+                const d = String(dt.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
+
+            return s; // 最後妥協，保留原格式
+        }
+
+        // 整理歷史數據 (最新在最上面)
+        function getProcessedRecords() {
+            let vRecords = records[currentVehicle] || [];
+            
+            // 洗入與強迫標準化
+            vRecords.forEach(r => {
+                r.date = cleanDate(r.date);
                 r.mileage = parseFloat(r.mileage) || 0;
                 r.price = parseFloat(r.price) || 0;
                 r.liters = parseFloat(r.liters) || 0;
-                return r;
             });
-            if (modified) {
-                saveEncryptedData(records); // 密碼存在時重新寫入修正後的檔案
-            }
+
+            // 排序規則：日期降冪 (最新最上)。若相同，里程降冪。
+            vRecords.sort((a, b) => {
+                const dA = new Date(a.date).getTime();
+                const dB = new Date(b.date).getTime();
+                if (dA !== dB) return dB - dA;
+                return b.mileage - a.mileage;
+            });
+
+            // 計算油耗
+            return vRecords.map((r, i) => {
+                let prev = null;
+                // 後方的都是時間更早、索引更大的紀錄
+                for (let j = i + 1; j < vRecords.length; j++) {
+                    if (vRecords[j].mileage < r.mileage) {
+                        prev = vRecords[j];
+                        break;
+                    }
+                }
+                
+                let dist = 0, eco = null;
+                if (prev && r.liters > 0) {
+                    dist = r.mileage - prev.mileage;
+                    if (dist > 0) eco = dist / r.liters;
+                }
+                return { ...r, distance: dist, economy: eco };
+            });
         }
 
-        // 統一排序函式：優先按日期由新到舊排序；若日期相同，則按里程由大到小排序
+        // 🟢 全域排序函數，保障在 enterApp, commitExcelImport, syncFromGoogle 下載後能正常排序
         function sortRecords() {
-            records.sort((a, b) => {
-                const dateA = new Date(a.date);
-                const dateB = new Date(b.date);
-                if (dateA.getTime() !== dateB.getTime()) {
-                    return dateB - dateA; // 日期降冪（最新的在最上面）
-                }
-                return b.mileage - a.mileage; // 里程降冪
-            });
-        }
-
-        // 智慧搜尋演算法：尋找該筆紀錄之前（時間更早、且里程更低）的第一筆有效加油資料
-        function getPreviousRecord(currentIndex) {
-            const current = records[currentIndex];
-            for (let j = currentIndex + 1; j < records.length; j++) {
-                if (records[j].mileage < current.mileage) {
-                    return records[j]; 
-                }
-            }
-            return null;
-        }
-
-
-        // ==========================================
-        // 📱 切換分頁與選單
-        // ==========================================
-
-        function switchMainTab(mainTabId) {
-            const trackerTab = document.getElementById('main-tab-tracker');
-            const analysisTab = document.getElementById('main-tab-analysis');
-            const trackerSection = document.getElementById('section-tracker');
-            const analysisSection = document.getElementById('section-analysis');
-
-            if (mainTabId === 'tracker') {
-                trackerTab.className = "flex-1 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 bg-primary text-white shadow-md";
-                analysisTab.className = "flex-1 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-gray-500 hover:text-gray-800";
-                trackerSection.classList.remove('hidden');
-                analysisSection.classList.add('hidden');
-                stopScanning();
-            } else {
-                analysisTab.className = "flex-1 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 bg-primary text-white shadow-md";
-                trackerTab.className = "flex-1 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-gray-500 hover:text-gray-800";
-                trackerSection.classList.add('hidden');
-                analysisSection.classList.remove('hidden');
-                
-                initAnalysisView();
-            }
-        }
-
-        function switchInputTab(tabId) {
-            const tabs = ['manual', 'qr', 'carrier', 'paste', 'excel', 'google'];
-            tabs.forEach(t => {
-                const button = document.getElementById(`tab-${t}`);
-                const content = document.getElementById(`content-${t}`);
-                if (t === tabId) {
-                    button.className = "flex-1 min-w-[90px] py-3 text-xs md:text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 bg-white text-primary shadow-sm flex-shrink-0";
-                    content.classList.remove('hidden');
-                } else {
-                    button.className = "flex-1 min-w-[90px] py-3 text-xs md:text-sm font-semibold rounded-xl transition-all flex items-center justify-center gap-1.5 text-gray-500 hover:text-gray-800 flex-shrink-0";
-                    content.classList.add('hidden');
-                }
-            });
-
-            if (tabId !== 'qr') {
-                stopScanning();
-            }
-        }
-
-        function toggleSetupInstructions() {
-            const block = document.getElementById('setup-instructions');
-            const arrow = document.getElementById('arrow-setup');
-            if (block.classList.contains('hidden')) {
-                block.classList.remove('hidden');
-                arrow.classList.add('rotate-180');
-            } else {
-                block.classList.add('hidden');
-                arrow.classList.remove('rotate-180');
-            }
-        }
-
-
-        // ==========================================
-        // 📷 1. QR Code 掃描器與解析邏輯
-        // ==========================================
-        function startScanning() {
-            document.getElementById('scannerPlaceholder').classList.add('hidden');
-            document.getElementById('btnStopScan').classList.remove('hidden');
-            
-            html5QrcodeScanner = new Html5Qrcode("reader");
-            const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-                stopScanning();
-                const parsed = parseTaiwanInvoiceQRCode(decodedText);
-                if (parsed) {
-                    showModal("掃描成功", "成功讀取電子發票條碼！", "success");
-                    displayScannedResult(parsed);
-                } else {
-                    showModal("無法解析發票", "這可能不是發票左側的 QR Code，或者格式不符合規則。\n請改對準發票左邊有大正方形的 QR Code 掃描！", "warning");
-                    document.getElementById('scannerPlaceholder').classList.remove('hidden');
-                }
-            };
-            
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-            html5QrcodeScanner.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
-                .catch(err => {
-                    showModal("相機啟動失敗", "無法存取您的相機，請確保網頁有授權相機權限！", "warning");
-                    stopScanning();
-                });
-        }
-
-        function stopScanning() {
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.stop().then(() => {
-                    html5QrcodeScanner = null;
-                }).catch(err => console.log(err));
-            }
-            document.getElementById('scannerPlaceholder').classList.remove('hidden');
-            document.getElementById('btnStopScan').classList.add('hidden');
-        }
-
-        function displayScannedResult(data) {
-            document.getElementById('scanResultCard').classList.remove('hidden');
-            document.getElementById('scanInvNum').innerText = data.invNum;
-            document.getElementById('scanDate').innerText = data.date;
-            document.getElementById('scanGasType').innerText = data.gasType;
-            document.getElementById('scanLiters').innerText = data.liters;
-            document.getElementById('scanPrice').innerText = data.price;
-            document.getElementById('scanTotal').innerText = data.total;
-            
-            window.lastScannedData = data;
-        }
-
-        function applyScannedData() {
-            if (window.lastScannedData) {
-                const d = window.lastScannedData;
-                document.getElementById('date').value = d.date;
-                document.getElementById('price').value = d.price;
-                document.getElementById('liters').value = d.liters;
-                
-                switchInputTab('manual');
-                document.getElementById('mileage').focus();
-                
-                showModal("已帶入資料", "發票日期、油價、公升數已自動幫您填寫，請手動補齊「當下車錶里程」即可存檔！", "info");
-                document.getElementById('scanResultCard').classList.add('hidden');
-            }
-        }
-
-
-        // ==========================================
-        // ☁️ 2. 雲端載具 API 串接與模擬
-        // ==========================================
-        function fetchCarrierInvoices(isMock = false) {
-            const carrierNo = document.getElementById('carrierCardNo').value;
-            const password = document.getElementById('carrierPassword').value;
-
-            if (!isMock && (!carrierNo || !password)) {
-                showModal("提示", "若要串接真實財政部 API，請輸入您的手機條碼與載具驗證碼。\n或點擊「智慧模擬載入」立刻體驗！", "warning");
-                return;
-            }
-
-            const container = document.getElementById('carrierInvoicesContainer');
-            const listBody = document.getElementById('carrierListBody');
-            
-            container.classList.remove('hidden');
-            listBody.innerHTML = `<div class="p-4 text-center text-xs text-gray-500 animate-pulse"><i class="fas fa-spinner fa-spin"></i> 載入發票中...</div>`;
-
-            setTimeout(() => {
-                let invoiceList = [];
-
-                if (isMock) {
-                    const today = new Date();
-                    const d1 = new Date(); d1.setDate(today.getDate() - 2);     // 2026年 5月
-                    const d2 = new Date(); d2.setMonth(today.getMonth() - 1);    // 2026年 4月
-                    const d3 = new Date(); d3.setMonth(today.getMonth() - 2);    // 2026年 3月
-                    const d4 = new Date(); d4.setMonth(today.getMonth() - 3);    // 2026年 2月
-                    const d5 = new Date(); d5.setMonth(today.getMonth() - 4);    // 2026年 1月
-                    const d6 = new Date(); d6.setMonth(today.getMonth() - 5);    // 2025年 12月
-                    const d7 = new Date(); d7.setMonth(today.getMonth() - 6);    // 2025年 11月
-
-                    invoiceList = [
-                        { id: 1, seller: "台灣中油-大安站", date: d1.toISOString().split('T')[0], gasType: "95無鉛汽油", liters: 38.25, price: 31.2, total: 1193 },
-                        { id: 2, seller: "台亞石油-板橋站", date: d2.toISOString().split('T')[0], gasType: "95無鉛汽油", liters: 41.50, price: 30.8, total: 1278 },
-                        { id: 3, seller: "全國加油站-汐止站", date: d3.toISOString().split('T')[0], gasType: "95無鉛汽油", liters: 36.10, price: 29.9, total: 1079 },
-                        { id: 4, seller: "台灣中油-內湖站", date: d4.toISOString().split('T')[0], gasType: "95無鉛汽油", liters: 39.40, price: 30.5, total: 1202 },
-                        { id: 5, seller: "台亞石油-中和站", date: d5.toISOString().split('T')[0], gasType: "95無鉛汽油", liters: 37.80, price: 31.4, total: 1187 },
-                        { id: 6, seller: "全國加油站-土城站", date: d6.toISOString().split('T')[0], gasType: "95無鉛汽油", liters: 40.20, price: 32.1, total: 1290 },
-                        { id: 7, seller: "台灣中油-信義站", date: d7.toISOString().split('T')[0], gasType: "95無鉛汽油", liters: 35.50, price: 31.8, total: 1129 }
-                    ];
-                } else {
-                    isMock = true; 
-                    return fetchCarrierInvoices(true);
-                }
-
-                listBody.innerHTML = '';
-                invoiceList.forEach(inv => {
-                    const div = document.createElement('div');
-                    div.className = "p-3 hover:bg-sky-50 cursor-pointer transition-colors flex justify-between items-center text-xs border-b border-gray-100 last:border-0";
-                    div.onclick = () => importCarrierInvoice(inv);
-                    div.innerHTML = `
-                        <div>
-                            <div class="font-bold text-gray-800">${inv.seller}</div>
-                            <div class="text-gray-500 mt-1">${inv.date} • ${inv.gasType}</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="font-bold text-primary">${inv.liters} L</div>
-                            <div class="text-gray-400">單價: ${inv.price}元 / 總額: ${inv.total}元</div>
-                        </div>
-                    `;
-                    listBody.appendChild(div);
-                });
-
-            }, 1000);
-        }
-
-        function importCarrierInvoice(inv) {
-            document.getElementById('date').value = parseAndFormatDate(inv.date);
-            document.getElementById('price').value = inv.price;
-            document.getElementById('liters').value = inv.liters;
-            
-            switchInputTab('manual');
-            document.getElementById('mileage').focus();
-            
-            showModal("匯入成功", `已成功載入發票數據！\n加油日：${inv.date}\n單價：${inv.price} 元\n公升數：${inv.liters} L\n請手動輸入當時里程即可儲存。`, "success");
-        }
-
-
-        // ==========================================
-        // 📥 3. Excel 智慧解析與對應
-        // ==========================================
-
-        function handleExcelUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    const rawRows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-                    
-                    if (rawRows.length < 2) {
-                        showModal("上傳失敗", "此檔案內容空白，或未包含表頭與數據列！", "warning");
-                        return;
-                    }
-
-                    const headers = rawRows[0].map(h => String(h || '').trim());
-                    window.tempExcelHeaders = headers;
-                    window.tempExcelRawRows = rawRows.slice(1);
-
-                    populateMappingDropdowns(headers);
-                    autoDetectFields(headers);
-
-                    document.getElementById('excelMappingCard').classList.remove('hidden');
-                    document.getElementById('excelPreviewCard').classList.add('hidden');
-                } catch(err) {
-                    console.error(err);
-                    showModal("解析失敗", "讀取 Excel 檔案時發生錯誤。請確認檔案格式是否正確！", "warning");
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        function populateMappingDropdowns(headers) {
-            const dropdowns = ['map-date', 'map-mileage', 'map-price', 'map-liters'];
-            dropdowns.forEach(id => {
-                const select = document.getElementById(id);
-                select.innerHTML = '<option value="-1">-- 請選擇對應欄位 --</option>';
-                headers.forEach((header, index) => {
-                    if (header) {
-                        const opt = document.createElement('option');
-                        opt.value = index;
-                        opt.innerText = `${header} (欄位 ${index + 1})`;
-                        select.appendChild(opt);
-                    }
-                });
-            });
-        }
-
-        function autoDetectFields(headers) {
-            headers.forEach((h, index) => {
-                const header = h.toLowerCase();
-                if (header.includes('日') || header.includes('date') || header.includes('時間') || header.includes('time')) {
-                    document.getElementById('map-date').value = index;
-                } else if (header.includes('里程') || header.includes('mileage') || header.includes('km') || header.includes('公里') || header.includes('車錶')) {
-                    document.getElementById('map-mileage').value = index;
-                } else if (header.includes('價') || header.includes('price') || header.includes('單價') || header.includes('油價')) {
-                    document.getElementById('map-price').value = index;
-                } else if (header.includes('公升') || header.includes('liter') || header.includes('l') || header.includes('量')) {
-                    document.getElementById('map-liters').value = index;
+            ['car', 'motorcycle'].forEach(v => {
+                if (records[v] && Array.isArray(records[v])) {
+                    records[v].sort((a, b) => {
+                        const dA = new Date(a.date).getTime() || 0;
+                        const dB = new Date(b.date).getTime() || 0;
+                        if (dA !== dB) return dB - dA; // 日期降冪
+                        return b.mileage - a.mileage;  // 里程降冪
+                    });
                 }
             });
         }
-
-        function previewMappedExcel() {
-            const mapDateIdx = parseInt(document.getElementById('map-date').value);
-            const mapMileageIdx = parseInt(document.getElementById('map-mileage').value);
-            const mapPriceIdx = parseInt(document.getElementById('map-price').value);
-            const mapLitersIdx = parseInt(document.getElementById('map-liters').value);
-
-            if (mapDateIdx === -1 || mapMileageIdx === -1 || mapPriceIdx === -1 || mapLitersIdx === -1) {
-                showModal("對應不完整", "請為所有標記紅星 (*) 的核心欄位指定 Excel 對應表頭！", "warning");
-                return;
-            }
-
-            const previewBody = document.getElementById('excelPreviewTableBody');
-            previewBody.innerHTML = '';
-            window.tempParsedRecords = [];
-            let invalidCount = 0;
-
-            window.tempExcelRawRows.forEach(row => {
-                let rawDate = row[mapDateIdx];
-                let rawMileage = row[mapMileageIdx];
-                let rawPrice = row[mapPriceIdx];
-                let rawLiters = row[mapLitersIdx];
-
-                if (rawDate === undefined && rawMileage === undefined) return;
-
-                // 使用強固型日期轉換
-                const formattedDate = parseAndFormatDate(rawDate);
-
-                const mileage = parseFloat(String(rawMileage || '').replace(/[^\d\.]/g, ''));
-                const price = parseFloat(String(rawPrice || '').replace(/[^\d\.]/g, ''));
-                const liters = parseFloat(String(rawLiters || '').replace(/[^\d\.]/g, ''));
-
-                if (!formattedDate || isNaN(mileage) || isNaN(price) || isNaN(liters)) {
-                    invalidCount++;
-                    return;
-                }
-
-                window.tempParsedRecords.push({
-                    id: Date.now() + Math.random(),
-                    date: formattedDate,
-                    mileage: mileage,
-                    price: price,
-                    liters: liters
-                });
-            });
-
-            if (window.tempParsedRecords.length === 0) {
-                showModal("無有效數據", `對應失敗！無法從上傳的數據中提取有效紀錄。請檢查您對應的欄位與內容。`, "warning");
-                return;
-            }
-
-            window.tempParsedRecords.forEach(rec => {
-                const tr = document.createElement('tr');
-                tr.className = "border-b border-gray-100 hover:bg-gray-50";
-                tr.innerHTML = `
-                    <td class="p-2 text-gray-700 font-medium">${rec.date}</td>
-                    <td class="p-2 text-gray-900">${rec.mileage} km</td>
-                    <td class="p-2 text-gray-600">${rec.price} 元</td>
-                    <td class="p-2 text-gray-600">${rec.liters} L</td>
-                `;
-                previewBody.appendChild(tr);
-            });
-
-            document.getElementById('excelPreviewCount').innerText = window.tempParsedRecords.length;
-            document.getElementById('excelPreviewCard').classList.remove('hidden');
-        }
-
-        function commitExcelImport() {
-            if (window.tempParsedRecords.length === 0) return;
-            records = [...records, ...window.tempParsedRecords];
-            sortRecords();
-            saveEncryptedData(records);
-            renderTableAndStats();
-
-            const count = window.tempParsedRecords.length;
-            cancelExcelImport();
-            switchInputTab('manual');
-            showModal("匯入成功 🎉", `已成功批次導入並 AES 加密儲存了 ${count} 筆加油紀錄！`, "success");
-        }
-
-
-        // ==========================================
-        // ☁️ 4. Google Sheets 實時雙向同步模組
-        // ==========================================
-        
-        function syncFromGoogle() {
-            const url = document.getElementById('googleScriptUrl').value.trim();
-            if (!url) {
-                showModal("欄位空白", "請輸入您在 Google 部署後取得的 Web App URL 才能進行雲端同步！", "warning");
-                return;
-            }
-
-            const encryptedUrl = CryptoJS.AES.encrypt(url, masterPassword).toString();
-            localStorage.setItem('googleScriptUrl_encrypted', encryptedUrl);
-
-            showModal("雲端同步中", "正在安全連線 Google 雲端讀取並解密資料，請稍候...", "info");
-
-            fetch(url)
-                .then(response => {
-                    if (!response.ok) throw new Error("網路連線不穩定");
-                    return response.json();
-                })
-                .then(data => {
-                    if (Array.isArray(data)) {
-                        const localMap = new Map();
-                        records.forEach(r => localMap.set(`${r.date}_${r.mileage}`, r));
-                        
-                        let newCount = 0;
-                        data.forEach(cloudRec => {
-                            const key = `${cloudRec.date}_${cloudRec.mileage}`;
-                            if (!localMap.has(key)) {
-                                // 智慧清洗雲端帶入的日期
-                                const formattedCloudDate = parseAndFormatDate(cloudRec.date);
-                                localMap.set(key, {
-                                    id: Date.now() + Math.random(),
-                                    date: formattedCloudDate,
-                                    mileage: Number(cloudRec.mileage),
-                                    price: Number(cloudRec.price),
-                                    liters: Number(cloudRec.liters)
-                                });
-                                newCount++;
-                            }
-                        });
-
-                        records = Array.from(localMap.values());
-                        // 強制清洗一次，將以前損毀的 " GM" 徹底根治
-                        sanitizeAllRecordDates();
-                        sortRecords();
-                        saveEncryptedData(records);
-                        renderTableAndStats();
-
-                        showModal("雲端同步成功 🎉", `已解密並安全導入了 ${newCount} 筆雲端數據，目前累計共有 ${records.length} 筆加密紀錄！`, "success");
-                    }
-                })
-                .catch(err => {
-                    console.error(err);
-                    showModal("同步失敗 ❌", "無法讀取 Google Sheets！請確認部署網址正確，且權限設定為任何人 (Anyone)。", "warning");
-                });
-        }
-
-        function syncToGoogle() {
-            const url = document.getElementById('googleScriptUrl').value.trim();
-            if (!url) {
-                showModal("欄位空白", "請輸入您在 Google 部署後取得的 Web App URL 才能進行雲端同步！", "warning");
-                return;
-            }
-
-            if (records.length === 0) {
-                showModal("無數據", "本地目前沒有任何紀錄，無法上傳同步喔！", "warning");
-                return;
-            }
-
-            const encryptedUrl = CryptoJS.AES.encrypt(url, masterPassword).toString();
-            localStorage.setItem('googleScriptUrl_encrypted', encryptedUrl);
-
-            showModal("正在上傳", "正在將本地紀錄上傳至 Google 雲端覆蓋，請稍候...", "info");
-
-            const uploadPayload = [...records].reverse().map(r => ({
-                date: r.date,
-                mileage: r.mileage,
-                price: r.price,
-                liters: r.liters
-            }));
-
-            fetch(url, {
-                method: "POST",
-                mode: "no-cors", 
-                headers: {
-                    "Content-Type": "text/plain"
-                },
-                body: JSON.stringify(uploadPayload)
-            })
-            .then(() => {
-                showModal("同步成功 🎉", `已成功將本地 ${records.length} 筆紀錄加密上傳並覆蓋至您的 Google Sheets！`, "success");
-            })
-            .catch(err => {
-                console.error(err);
-                showModal("上傳失敗 ❌", "傳送資料時發生錯誤，請檢查您的 Web App 部署是否正常。", "warning");
-            });
-        }
-
-
-        // ==========================================
-        // 📊 5. 數據儲存、計算與統計報表邏輯
-        // ==========================================
 
         function saveRecord() {
-            const date = parseAndFormatDate(document.getElementById('date').value);
+            const rawDate = document.getElementById('date').value;
+            const date = cleanDate(rawDate);
             const mileage = parseFloat(document.getElementById('mileage').value);
-            const price = parseFloat(document.getElementById('price').value);
-            const liters = parseFloat(document.getElementById('liters').value);
+            const price = parseFloat(document.getElementById('price').value) || 0; // 油價若為0，不阻擋
+            const liters = parseFloat(document.getElementById('liters').value) || 0; // 公升若為0，不阻擋
 
-            if(!date || isNaN(mileage) || isNaN(price) || isNaN(liters)) {
-                showModal('資料不完整', '請填寫日期、里程、油價與公升數！', 'warning');
-                return;
+            if (!date || isNaN(mileage)) {
+                return showModal('資料不齊全', '請填寫日期與當下里程！', 'warning');
             }
 
-            if (records.length > 0) {
-                const pastRecords = records.filter(r => r.date <= date && r.id !== Date.now());
-                if (pastRecords.length > 0) {
-                    const latestPast = pastRecords.reduce((prev, curr) => prev.mileage > curr.mileage ? prev : curr);
-                    if (mileage <= latestPast.mileage) {
-                        showModal('里程輸入錯誤', `此日期的行駛里程 (${mileage} km) 不能低於或等於之前的里程紀錄 (${latestPast.mileage} km)！`, 'warning');
-                        return;
-                    }
-                }
-            }
+            records[currentVehicle].push({
+                id: crypto.randomUUID(),
+                date: date,
+                mileage: mileage,
+                price: price,
+                liters: liters
+            });
 
-            const newRecord = { id: Date.now(), date, mileage, price, liters };
-            records.push(newRecord);
             sortRecords();
-
-            saveEncryptedData(records);
-            renderTableAndStats();
+            saveLocalData();
+            updateUI();
             
             document.getElementById('mileage').value = '';
             document.getElementById('price').value = '';
             document.getElementById('liters').value = '';
-            
-            showModal('儲存成功', '加油紀錄已加密並成功儲存！', 'success');
-        }
-
-        function triggerClearAll() {
-            showConfirmModal("清空全部數據", "警告！這將清除您所有的加油與油耗歷史紀錄且無法恢復。確定要清空嗎？", () => {
-                records = [];
-                localStorage.removeItem('gasRecords_encrypted');
-                renderTableAndStats();
-                showModal("清除成功", "您所有的加油紀錄已清除完畢。", "success");
-            });
+            showModal('儲存成功', `已新增一筆加油紀錄！`, 'success');
         }
 
         function deleteRecord(id) {
-            showConfirmModal("刪除此筆資料", "您確定要刪除這筆加油紀錄嗎？刪除後將重新計算油耗與統計。", () => {
-                records = records.filter(r => r.id !== id);
-                saveEncryptedData(records);
-                renderTableAndStats();
-                showModal("刪除成功", "該筆紀錄已安全抹除。", "success");
+            showModal('刪除確認', '確定要刪除這筆紀錄嗎？', 'warning', () => {
+                records[currentVehicle] = records[currentVehicle].filter(r => r.id !== id);
+                saveLocalData();
+                updateUI();
             });
         }
 
+        function clearCurrentVehicleRecords() {
+            const vName = currentVehicle === 'car' ? '汽車' : '機車';
+            showModal('清空確認', `警告！這將清除您所有的「${vName}」紀錄且無法復原。`, 'error', () => {
+                records[currentVehicle] = [];
+                saveLocalData();
+                updateUI();
+            });
+        }
+
+        // 渲染歷史紀錄表格與看板
         function renderTableAndStats() {
             const tbody = document.getElementById('recordTableBody');
             const emptyState = document.getElementById('emptyState');
-            tbody.innerHTML = '';
+            const data = getProcessedRecords();
 
-            if (records.length === 0) {
+            tbody.innerHTML = '';
+            if (data.length === 0) {
                 emptyState.classList.remove('hidden');
-                emptyState.classList.add('flex');
-                document.getElementById('statLatestEco').innerText = '---';
-                document.getElementById('statTotalLiters').innerText = '0.00';
-                document.getElementById('statTotalDistance').innerText = '0';
-                document.getElementById('statAvgPrice').innerText = '0.0';
-                return;
+                document.getElementById('statDistance').innerHTML = `0 <span class="text-xs font-normal">km</span>`;
+                document.getElementById('statLiters').innerHTML = `0.00 <span class="text-xs font-normal">L</span>`;
+                document.getElementById('statCost').innerHTML = `0 <span class="text-xs font-normal">元</span>`;
+                document.getElementById('statEconomy').innerHTML = `0.00 <span class="text-xs font-normal">km/L</span>`;
             } else {
                 emptyState.classList.add('hidden');
-                emptyState.classList.remove('flex');
-            }
+                let totalLiters = 0, totalPriceSum = 0, latestEco = '---';
 
-            let totalLiters = 0;
-            let totalPriceSum = 0;
-            let latestEco = '---';
+                data.forEach(r => {
+                    const displayDate = cleanDate(r.date);
+                    const ecoText = r.economy ? r.economy.toFixed(2) : '-';
+                    const ecoClass = r.economy ? (currentVehicle==='car'?'text-blue-600 font-bold':'text-emerald-600 font-bold') : 'text-gray-400 text-xs';
+                    
+                    totalLiters += r.liters;
+                    totalPriceSum += (r.price * r.liters);
 
-            for (let i = 0; i < records.length; i++) {
-                const current = records[i];
-                let fuelEconomy = '---';
-                totalLiters += current.liters;
-                totalPriceSum += current.price;
-
-                const previous = getPreviousRecord(i);
-                if (previous && current.liters > 0) {
-                    const distance = current.mileage - previous.mileage;
-                    if (distance > 0) {
-                        const eco = distance / current.liters;
-                        fuelEconomy = eco.toFixed(2);
-                        if (latestEco === '---') {
-                            latestEco = fuelEconomy;
-                        }
+                    if (r.economy && latestEco === '---') {
+                        latestEco = r.economy.toFixed(2);
                     }
-                }
 
-                const cost = (current.price * current.liters).toFixed(0);
-
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition-colors border-b border-gray-100";
-                tr.innerHTML = `
-                    <td class="p-4 text-sm text-gray-700 font-medium">${current.date}</td>
-                    <td class="p-4 text-sm text-gray-900">${current.mileage}</td>
-                    <td class="p-4 text-sm text-gray-600">${current.price} 元</td>
-                    <td class="p-4 text-sm text-gray-600">${current.liters} L</td>
-                    <td class="p-4 text-sm font-semibold text-gray-800">${cost} 元</td>
-                    <td class="p-4 text-sm font-bold ${fuelEconomy !== '---' ? 'text-primary' : 'text-gray-400'}">
-                        ${fuelEconomy !== '---' ? fuelEconomy + ' km/L' : '首筆資料'}
-                    </td>
-                    <td class="p-4 text-sm">
-                        <button onclick="deleteRecord(${current.id})" class="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-colors" title="刪除">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            }
-
-            document.getElementById('statLatestEco').innerText = latestEco;
-            document.getElementById('statTotalLiters').innerText = totalLiters.toFixed(2);
-            
-            if (records.length >= 2) {
-                const mileages = records.map(r => r.mileage);
-                const absoluteDistance = Math.max(...mileages) - Math.min(...mileages);
-                document.getElementById('statTotalDistance').innerText = absoluteDistance;
-            } else {
-                document.getElementById('statTotalDistance').innerText = '0';
-            }
-
-            const validPrices = records.filter(r => r.price > 0);
-            const avgPrice = validPrices.length > 0 
-                ? (validPrices.reduce((sum, r) => sum + r.price, 0) / validPrices.length).toFixed(1) 
-                : '0.0';
-            document.getElementById('statAvgPrice').innerText = avgPrice;
-        }
-
-        // ==========================================
-        // 📈 6. 年度與月度 analysis
-        // ==========================================
-        function initAnalysisView() {
-            const yearSelect = document.getElementById('analysisYearSelect');
-            yearSelect.innerHTML = '';
-
-            const yearsSet = new Set();
-            records.forEach(r => {
-                const year = new Date(r.date).getFullYear();
-                if(!isNaN(year)) yearsSet.add(year);
-            });
-
-            const currentYear = new Date().getFullYear();
-            yearsSet.add(currentYear);
-
-            const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
-            
-            sortedYears.forEach(year => {
-                const opt = document.createElement('option');
-                opt.value = year;
-                opt.innerText = `${year} 年`;
-                yearSelect.appendChild(opt);
-            });
-
-            yearSelect.value = sortedYears[0] || currentYear;
-
-            updateAnalysisData();
-        }
-
-        function updateAnalysisData() {
-            const yearSelect = document.getElementById('analysisYearSelect');
-            const selectedYear = parseInt(yearSelect.value);
-            
-            document.getElementById('analysisTableTitle').innerText = selectedYear;
-
-            const monthlyData = [];
-            for (let i = 0; i < 12; i++) {
-                monthlyData.push({
-                    month: i + 1,
-                    totalLiters: 0,
-                    totalCost: 0,
-                    distanceSum: 0,
-                    litersForDistance: 0,
-                    priceSum: 0,
-                    priceCount: 0
+                    const tr = document.createElement('tr');
+                    tr.className = "hover:bg-slate-50 transition-colors duration-150 border-b border-slate-100";
+                    tr.innerHTML = `
+                        <td class="p-4 text-gray-700">${displayDate}</td>
+                        <td class="p-4 font-semibold">${r.mileage}</td>
+                        <td class="p-4 text-gray-500">${r.price ? r.price + ' 元' : '-'}</td>
+                        <td class="p-4 text-gray-500">${r.liters ? r.liters + ' L' : '-'}</td>
+                        <td class="p-4 ${ecoClass}">${ecoText}</td>
+                        <td class="p-4 text-center">
+                            <button onclick="deleteRecord('${r.id}')" class="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-2.5 rounded-xl transition-all"><i class="fas fa-trash"></i></button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
                 });
-            }
 
-            const processedRecords = [];
-            for (let i = 0; i < records.length; i++) {
-                const r = records[i];
-                let economy = null;
-                let distance = 0;
-                
-                const previous = getPreviousRecord(i);
-                if (previous && r.liters > 0) {
-                    distance = r.mileage - previous.mileage;
-                    if (distance > 0) {
-                        economy = distance / r.liters;
-                    }
-                }
-                
-                processedRecords.push({
-                    ...r,
-                    distance,
-                    economy
-                });
-            }
-
-            processedRecords.forEach(r => {
-                const recDate = new Date(r.date);
-                const year = recDate.getFullYear();
-                const month = recDate.getMonth(); 
-
-                if (year === selectedYear) {
-                    monthlyData[month].totalLiters += r.liters;
-                    monthlyData[month].totalCost += (r.price * r.liters);
-                    if (r.price > 0) {
-                        monthlyData[month].priceSum += r.price;
-                        monthlyData[month].priceCount += 1;
-                    }
-
+                // 更新統計數據
+                let totalDistance = 0;
+                let ecoLiters = 0;
+                data.forEach(r => {
                     if (r.economy !== null) {
-                        monthlyData[month].distanceSum += r.distance;
-                        monthlyData[month].litersForDistance += r.liters;
+                        totalDistance += r.distance;
+                        ecoLiters += r.liters;
                     }
-                }
-            });
+                });
 
-            const tbody = document.getElementById('analysisTableBody');
-            tbody.innerHTML = '';
-
-            let yearLiters = 0;
-            let yearCost = 0;
-            let yearDistance = 0;
-            let yearLitersForDistance = 0;
-
-            const chartLiters = [];
-            const chartPrices = [];
-            const chartEconomies = [];
-
-            monthlyData.forEach(m => {
-                const avgPrice = m.priceCount > 0 ? (m.priceSum / m.priceCount).toFixed(1) : '---';
-                const economyVal = m.litersForDistance > 0 ? (m.distanceSum / m.litersForDistance).toFixed(2) : '---';
-                
-                yearLiters += m.totalLiters;
-                yearCost += m.totalCost;
-                yearDistance += m.distanceSum;
-                yearLitersForDistance += m.litersForDistance;
-
-                chartLiters.push(m.totalLiters.toFixed(1));
-                chartPrices.push(m.priceCount > 0 ? parseFloat((m.priceSum / m.priceCount).toFixed(2)) : null);
-                chartEconomies.push(m.litersForDistance > 0 ? parseFloat((m.distanceSum / m.litersForDistance).toFixed(2)) : null);
-
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-gray-50 transition-colors border-b border-gray-100";
-                tr.innerHTML = `
-                    <td class="p-3.5 font-semibold text-gray-700">${m.month} 月</td>
-                    <td class="p-3.5">${m.totalLiters > 0 ? m.totalLiters.toFixed(2) + ' L' : '---'}</td>
-                    <td class="p-3.5">${avgPrice !== '---' ? avgPrice + ' 元' : '---'}</td>
-                    <td class="p-3.5">${m.totalCost > 0 ? Math.round(m.totalCost) + ' 元' : '---'}</td>
-                    <td class="p-3.5">${m.distanceSum > 0 ? m.distanceSum + ' km' : '---'}</td>
-                    <td class="p-3.5 font-bold ${economyVal !== '---' ? 'text-primary' : 'text-gray-400'}">${economyVal !== '---' ? economyVal + ' km/L' : '---'}</td>
-                `;
-                tbody.appendChild(tr);
-            });
-
-            document.getElementById('yearTotalLiters').innerText = yearLiters.toFixed(1);
-            document.getElementById('yearTotalCost').innerText = Math.round(yearCost).toLocaleString();
-            document.getElementById('yearTotalDistance').innerText = yearDistance.toLocaleString();
-            
-            const yearAvgEconomy = yearLitersForDistance > 0 ? (yearDistance / yearLitersForDistance).toFixed(2) : '---';
-            document.getElementById('yearAvgEconomy').innerText = yearAvgEconomy;
-
-            renderCharts(chartLiters, chartPrices, chartEconomies);
+                document.getElementById('statDistance').innerHTML = `${totalDistance.toLocaleString()} <span class="text-xs font-normal">km</span>`;
+                document.getElementById('statLiters').innerHTML = `${totalLiters.toFixed(2)} <span class="text-xs font-normal">L</span>`;
+                document.getElementById('statCost').innerHTML = `${Math.round(totalPriceSum).toLocaleString()} <span class="text-xs font-normal">元</span>`;
+                document.getElementById('statEconomy').innerHTML = `${ecoLiters > 0 ? (totalDistance / ecoLiters).toFixed(2) : '0.00'} <span class="text-xs font-normal">km/L</span>`;
+            }
         }
 
-        function renderCharts(liters, prices, economies) {
-            const monthsLabel = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
-
-            if (oilTrendChartInstance) oilTrendChartInstance.destroy();
-            if (economyChartInstance) economyChartInstance.destroy();
-
-            const ctx1 = document.getElementById('oilTrendChart').getContext('2d');
-            oilTrendChartInstance = new Chart(ctx1, {
-                type: 'bar',
-                data: {
-                    labels: monthsLabel,
-                    datasets: [
-                        {
-                            label: '每月加油量 (L)',
-                            data: liters,
-                            backgroundColor: 'rgba(14, 165, 233, 0.65)',
-                            borderColor: 'rgba(14, 165, 233, 1)',
-                            borderWidth: 1.5,
-                            borderRadius: 6,
-                            yAxisID: 'yLiters'
-                        },
-                        {
-                            label: '平均單價 (元)',
-                            data: prices,
-                            type: 'line',
-                            borderColor: '#e67e22',
-                            backgroundColor: 'rgba(230, 126, 34, 0.1)',
-                            borderWidth: 3,
-                            pointBackgroundColor: '#d35400',
-                            pointRadius: 4,
-                            tension: 0.3,
-                            yAxisID: 'yPrice',
-                            spanGaps: true
+        function sanitizeAllRecordDates() {
+            let modified = false;
+            ['car', 'motorcycle'].forEach(v => {
+                if (records[v]) {
+                    records[v].forEach(r => {
+                        const cleaned = cleanDate(r.date);
+                        if (cleaned !== r.date) {
+                            r.date = cleaned;
+                            modified = true;
                         }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } },
-                    },
-                    scales: {
-                        x: { grid: { display: false } },
-                        yLiters: {
-                            type: 'linear',
-                            position: 'left',
-                            title: { display: true, text: '公升數 (L)', font: { size: 10 } },
-                            grid: { borderDash: [5, 5] },
-                            min: 0
-                        },
-                        yPrice: {
-                            type: 'linear',
-                            position: 'right',
-                            title: { display: true, text: '油價 (元)', font: { size: 10 } },
-                            grid: { display: false },
-                            min: 20
-                        }
-                    }
+                    });
+                }
+            });
+            if (modified) saveLocalData();
+        }
+
+        /* =========================================
+           統計分析圖表
+        ========================================= */
+        function updateAnalysisOptions() {
+            const select = document.getElementById('yearSelect');
+            select.innerHTML = '';
+            const data = getProcessedRecords();
+            const years = new Set(data.map(r => new Date(r.date).getFullYear()).filter(y => !isNaN(y)));
+            years.add(new Date().getFullYear());
+            
+            Array.from(years).sort((a,b)=>b-a).forEach(y => {
+                select.appendChild(new Option(`${y} 年`, y));
+            });
+            renderAnalysis();
+        }
+
+        function renderAnalysis() {
+            const year = parseInt(document.getElementById('yearSelect').value);
+            if(isNaN(year)) return;
+
+            const data = getProcessedRecords().filter(r => new Date(r.date).getFullYear() === year);
+            let yearDistance = 0, yearLiters = 0, yearCost = 0, ecoLiters = 0;
+            const monthly = Array.from({length: 12}, () => ({ dist: 0, liters: 0, ecoLiters: 0 }));
+
+            data.forEach(r => {
+                yearLiters += r.liters;
+                yearCost += (r.price * r.liters);
+                const m = new Date(r.date).getMonth();
+                monthly[m].liters += r.liters;
+                if (r.economy !== null) {
+                    yearDistance += r.distance;
+                    ecoLiters += r.liters;
+                    monthly[m].dist += r.distance;
+                    monthly[m].ecoLiters += r.liters;
                 }
             });
 
-            const ctx2 = document.getElementById('economyChart').getContext('2d');
-            economyChartInstance = new Chart(ctx2, {
+            document.getElementById('statDistance').innerHTML = `${yearDistance.toLocaleString()} <span class="text-xs font-normal">km</span>`;
+            document.getElementById('statLiters').innerHTML = `${yearLiters.toFixed(2)} <span class="text-xs font-normal">L</span>`;
+            document.getElementById('statCost').innerHTML = `${Math.round(yearCost).toLocaleString()} <span class="text-xs font-normal">元</span>`;
+            document.getElementById('statEconomy').innerHTML = `${ecoLiters > 0 ? (yearDistance/ecoLiters).toFixed(2) : '0.00'} <span class="text-xs font-normal">km/L</span>`;
+
+            const labels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+            const color = currentVehicle === 'car' ? '#2563eb' : '#10b981';
+            const bgLight = currentVehicle === 'car' ? 'rgba(37,99,235,0.08)' : 'rgba(16,185,129,0.08)';
+
+            const ecoData = monthly.map(m => m.ecoLiters > 0 ? (m.dist/m.ecoLiters).toFixed(2) : null);
+            const distData = monthly.map(m => m.dist > 0 ? m.dist : 0);
+
+            if(chartEco) chartEco.destroy();
+            chartEco = new Chart(document.getElementById('chartEconomy'), {
                 type: 'line',
-                data: {
-                    labels: monthsLabel,
-                    datasets: [{
-                        label: '平均油耗 (km/L)',
-                        data: economies,
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.05)',
-                        borderWidth: 3,
-                        pointBackgroundColor: '#059669',
-                        pointRadius: 4,
-                        tension: 0.25,
-                        fill: true,
-                        spanGaps: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'top', labels: { boxWidth: 12, font: { size: 11 } } }
-                    },
-                    scales: {
-                        x: { grid: { display: false } },
-                        y: {
-                            title: { display: true, text: '公里 / 公升', font: { size: 10 } },
-                            grid: { borderDash: [5, 5] },
-                            min: 0
-                        }
-                    }
-                }
+                data: { labels, datasets: [{ label: '平均油耗(km/L)', data: ecoData, borderColor: color, backgroundColor: bgLight, fill: true, tension: 0.3, spanGaps: true }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            if(chartDist) chartDist.destroy();
+            chartDist = new Chart(document.getElementById('chartDistance'), {
+                type: 'bar',
+                data: { labels, datasets: [{ label: '行駛里程(km)', data: distData, backgroundColor: color, borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false }
             });
         }
 
-        // ==========================================
-        // 💬 自訂互動式通知 & 確認對話框
-        // ==========================================
+        /* =========================================
+           ☁️ Google Sheets 同步模組 (Car/Motorcycle 雙表對接)
+        ========================================= */
+        function syncFromGoogle() {
+            const url = document.getElementById('syncUrl').value.trim();
+            if(!url) return showModal("錯誤", "請填寫 Web App URL", "error");
+            localStorage.setItem('syncUrl_v4_encrypted', CryptoJS.AES.encrypt(url, masterPassword).toString());
 
-        function showConfirmModal(title, message, onConfirmCallback) {
-            const modal = document.getElementById('confirmModal');
-            document.getElementById('confirmTitle').innerText = title;
-            document.getElementById('confirmMessage').innerText = message;
-            confirmCallback = onConfirmCallback;
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
+            showModal("同步中", "正在連線 Google 雲端拉取歷史數據，請稍候...", "info");
+            
+            fetch(url)
+                .then(r => r.json())
+                .then(data => {
+                    if(!data || (!Array.isArray(data.car) && !Array.isArray(data.motorcycle))) {
+                        throw new Error("資料格式異常");
+                    }
+                    
+                    const localCars = new Map();
+                    const localMotors = new Map();
+                    
+                    records.car.forEach(r => localCars.set(`${cleanDate(r.date)}_${r.mileage}_${r.price}_${r.liters}`, r));
+                    records.motorcycle.forEach(r => localMotors.set(`${cleanDate(r.date)}_${r.mileage}_${r.price}_${r.liters}`, r));
+                    
+                    let newCarCount = 0;
+                    let newMotorCount = 0;
+                    
+                    if (Array.isArray(data.car)) {
+                        data.car.forEach(c => {
+                            const d = cleanDate(c.date);
+                            if(d) {
+                                const key = `${d}_${Number(c.mileage)||0}_${Number(c.price)||0}_${Number(c.liters)||0}`;
+                                if(!localCars.has(key)) {
+                                    localCars.set(key, {
+                                        id: crypto.randomUUID(),
+                                        date: d,
+                                        mileage: Number(c.mileage) || 0,
+                                        price: Number(c.price) || 0,
+                                        liters: Number(c.liters) || 0
+                                    });
+                                    newCarCount++;
+                                }
+                            }
+                        });
+                    }
+                    
+                    if (Array.isArray(data.motorcycle)) {
+                        data.motorcycle.forEach(c => {
+                            const d = cleanDate(c.date);
+                            if(d) {
+                                const key = `${d}_${Number(c.mileage)||0}_${Number(c.price)||0}_${Number(c.liters)||0}`;
+                                if(!localMotors.has(key)) {
+                                    localMotors.set(key, {
+                                        id: crypto.randomUUID(),
+                                        date: d,
+                                        mileage: Number(c.mileage) || 0,
+                                        price: Number(c.price) || 0,
+                                        liters: Number(c.liters) || 0
+                                    });
+                                    newMotorCount++;
+                                }
+                            }
+                        });
+                    }
+                    
+                    records.car = Array.from(localCars.values());
+                    records.motorcycle = Array.from(localMotors.values());
+                    
+                    sanitizeAllRecordDates();
+                    sortRecords();
+                    saveLocalData();
+                    updateUI();
+                    
+                    showModal("同步成功 🎉", `成功下載並合併雲端數據！\n新增汽車: ${newCarCount} 筆\n新增機車: ${newMotorCount} 筆\n目前共有汽車 ${records.car.length} 筆，機車 ${records.motorcycle.length} 筆紀錄。`, "success");
+                })
+                .catch(e => {
+                    console.error(e);
+                    showModal("連線失敗 ❌", "無法讀取 Google Sheets！請確保 Apps Script 已成功發布，且權限設定為「任何人」。", "error");
+                });
         }
 
-        function closeConfirmModal(isConfirmed) {
-            const modal = document.getElementById('confirmModal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
+        function syncToGoogle() {
+            const url = document.getElementById('syncUrl').value.trim();
+            if(!url) return showModal("錯誤", "請填寫 Web App URL", "error");
             
-            if (isConfirmed && confirmCallback) {
-                confirmCallback();
-            }
-            confirmCallback = null;
-        }
-
-        function showModal(title, message, type = 'info') {
-            const modal = document.getElementById('notificationModal');
-            const modalContent = document.getElementById('modalContent');
-            const modalIcon = document.getElementById('modalIcon');
-            const modalTitle = document.getElementById('modalTitle');
-            const modalMessage = document.getElementById('modalMessage');
-
-            modalTitle.innerText = title;
-            modalMessage.innerHTML = message.replace(/\n/g, '<br>');
-
-            if (type === 'success') {
-                modalIcon.className = 'mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4';
-                modalIcon.innerHTML = '<i class="fas fa-check text-green-600 text-xl"></i>';
-            } else if (type === 'warning') {
-                modalIcon.className = 'mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4';
-                modalIcon.innerHTML = '<i class="fas fa-exclamation-triangle text-yellow-600 text-xl"></i>';
-            } else {
-                modalIcon.className = 'mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-sky-100 mb-4';
-                modalIcon.innerHTML = '<i class="fas fa-info text-sky-600 text-xl"></i>';
-            }
-
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
+            const totalCount = records.car.length + records.motorcycle.length;
+            if(totalCount === 0) return showModal("提示", "您目前無任何紀錄可上傳！", "warning");
             
-            setTimeout(() => {
-                modalContent.classList.remove('scale-95', 'opacity-0');
-                modalContent.classList.add('scale-100', 'opacity-100');
-            }, 10);
-        }
+            localStorage.setItem('syncUrl_v4_encrypted', CryptoJS.AES.encrypt(url, masterPassword).toString());
+            showModal("正在傳送", "正在封裝數據並安全覆寫至雲端試算表...", "info");
 
-        function closeModal() {
-            const modal = document.getElementById('notificationModal');
-            const modalContent = document.getElementById('modalContent');
-            
-            modalContent.classList.remove('scale-100', 'opacity-100');
-            modalContent.classList.add('scale-95', 'opacity-0');
-            
-            setTimeout(() => {
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            }, 200);
-        }
+            const payload = {
+                car: [...records.car]
+                    .sort((a, b) => (new Date(a.date).getTime() || 0) - (new Date(b.date).getTime() || 0))
+                    .map(r => ({
+                        date: cleanDate(r.date),
+                        mileage: Number(r.mileage) || 0,
+                        price: Number(r.price) || 0,
+                        liters: Number(r.liters) || 0
+                    })),
+                motorcycle: [...records.motorcycle]
+                    .sort((a, b) => (new Date(a.date).getTime() || 0) - (new Date(b.date).getTime() || 0))
+                    .map(r => ({
+                        date: cleanDate(r.date),
+                        mileage: Number(r.mileage) || 0,
+                        price: Number(r.price) || 0,
+                        liters: Number(r.liters) || 0
+                    }))
+            };
 
-        function cancelExcelImport() {
-            document.getElementById('excelMappingCard').classList.add('hidden');
-            document.getElementById('excelPreviewCard').classList.add('hidden');
-            document.getElementById('excelFileInput').value = '';
-            window.tempExcelHeaders = [];
-            window.tempExcelRawRows = [];
-            window.tempParsedRecords = [];
+            fetch(url, { method: "POST", mode: "no-cors", headers: {"Content-Type":"text/plain"}, body: JSON.stringify(payload) })
+                .then(() => showModal("同步成功 🎉", `本地完整 ${totalCount} 筆資料已成功寫入雲端的 Car 與 Motorcycle 工作表中！`, "success"))
+                .catch(e => showModal("失敗", "傳送錯誤，請檢查網路狀態或部署 URL。", "error"));
         }
     </script>
 </body>
