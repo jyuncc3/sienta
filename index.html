@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>雙載具油耗紀錄 Pro v2</title>
     
-    <!-- iOS Web App Meta Tags (PWA 專屬設定，加入主畫面自動變身原生 App) -->
+    <!-- iOS Web App Meta Tags -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="油耗 Pro v2">
@@ -89,9 +89,16 @@
                 <h1 class="font-bold text-xl flex items-center gap-2 text-slate-800">
                     <i class="fas fa-gas-pump text-blue-600" id="header-icon"></i> 油耗紀錄 Pro v2
                 </h1>
-                <button onclick="lockApp()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 shadow-sm">
-                    <i class="fas fa-lock"></i> 上鎖
-                </button>
+                
+                <div class="flex items-center gap-2">
+                    <!-- 雲端同步狀態燈 -->
+                    <span id="cloudStatusIndicator" class="text-xs px-2.5 py-1 rounded-full font-bold bg-green-100 text-green-700 flex items-center gap-1">
+                        <span class="h-2 w-2 rounded-full bg-green-500 animate-ping"></span> 雲端已同步
+                    </span>
+                    <button onclick="lockApp()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1.5 shadow-sm">
+                        <i class="fas fa-lock"></i> 上鎖
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -151,8 +158,8 @@
                             <input type="number" step="0.01" id="liters" inputmode="decimal" placeholder="公升" class="w-full border p-3 rounded-lg outline-none focus:border-blue-500">
                         </div>
                     </div>
-                    <button onclick="saveRecord()" class="w-full bg-gray-900 hover:bg-gray-800 text-white mt-5 px-6 py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2">
-                        <i class="fas fa-save"></i> 儲存紀錄
+                    <button onclick="saveRecord()" class="w-full bg-gray-900 hover:bg-gray-800 text-white mt-5 px-6 py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 shadow-sm">
+                        <i class="fas fa-save"></i> 儲存並同步雲端
                     </button>
                 </div>
 
@@ -168,6 +175,7 @@
                                 <tr>
                                     <th class="p-4">日期</th>
                                     <th class="p-4">里程 (km)</th>
+                                    <th class="p-4 text-blue-600 font-bold">行駛 (km)</th>
                                     <th class="p-4">油價 (元)</th>
                                     <th class="p-4">公升數 (L)</th>
                                     <th class="p-4 text-blue-600">油耗 (km/L)</th>
@@ -219,7 +227,7 @@
                         <div class="relative h-48"><canvas id="chartEconomy"></canvas></div>
                     </div>
                     <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-                        <h3 class="text-xs font-bold text-gray-500 mb-3 text-center">每月行駛里程 (km)</h3>
+                        <h3 class="text-xs font-bold text-gray-500 mb-3 text-center">每月行駛里程對比 (km)</h3>
                         <div class="relative h-48"><canvas id="chartDistance"></canvas></div>
                     </div>
                 </div>
@@ -247,7 +255,7 @@
                         <button onclick="syncFromGoogle()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold py-3.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors">
                             <i class="fas fa-cloud-download-alt"></i> 下載覆蓋本地
                         </button>
-                        <button onclick="syncToGoogle()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors shadow-md">
+                        <button onclick="syncToGoogle(true)" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors shadow-md">
                             <i class="fas fa-cloud-upload-alt"></i> 上傳覆蓋雲端
                         </button>
                     </div>
@@ -307,62 +315,6 @@
 
   return ContentService.createTextOutput(JSON.stringify(result))
     .setMimeType(ContentService.MimeType.JSON);
-}
-
-function doPost(e) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var payload = JSON.parse(e.postData.contents);
-
-  //---------------------------------
-  // 汽車資料覆蓋
-  //---------------------------------
-  var carSheet = ss.getSheetByName("Car");
-  if (!carSheet) {
-    carSheet = ss.insertSheet("Car");
-  }
-  carSheet.clearContents();
-  
-  var carData = [["DATE","N.KM","NT/L","L"]];
-  if (payload && payload.car && Array.isArray(payload.car)) {
-    payload.car.forEach(function(r) {
-      carData.push([
-        String(r.date || "").trim(), 
-        Number(r.mileage || 0), 
-        Number(r.price || 0), 
-        Number(r.liters || 0)
-      ]);
-    });
-  }
-  carSheet.getRange(1, 1, carData.length, 4).setValues(carData);
-
-  //---------------------------------
-  // 機車資料覆蓋
-  //---------------------------------
-  var motorSheet = ss.getSheetByName("Motorcycle");
-  if (!motorSheet) {
-    motorSheet = ss.insertSheet("Motorcycle");
-  }
-  motorSheet.clearContents();
-  
-  var motorData = [["DATE","N.KM","NT/L","L"]];
-  if (payload && payload.motorcycle && Array.isArray(payload.motorcycle)) {
-    payload.motorcycle.forEach(function(r) {
-      motorData.push([
-        String(r.date || "").trim(), 
-        Number(r.mileage || 0), 
-        Number(r.price || 0), 
-        Number(r.liters || 0)
-      ]);
-    });
-  }
-  motorSheet.getRange(1, 1, motorData.length, 4).setValues(motorData);
-
-  return ContentService.createTextOutput(JSON.stringify({
-    success: true,
-    carCount: payload && payload.car ? payload.car.length : 0,
-    motorcycleCount: payload && payload.motorcycle ? payload.motorcycle.length : 0
-  }))
-  .setMimeType(ContentService.MimeType.JSON);
 }
 
 // 智慧 UUID 生成輔助函數
@@ -468,6 +420,21 @@ function generateUUID() {
                 .then(() => showModal('複製成功', '程式碼已複製，請貼上至 Google Apps Script', 'success'));
         }
 
+        // 修改雲端狀態指示燈
+        function setCloudStatus(status, text) {
+            const ind = document.getElementById('cloudStatusIndicator');
+            if (status === 'syncing') {
+                ind.className = 'text-xs px-2.5 py-1 rounded-full font-bold bg-yellow-100 text-yellow-700 flex items-center gap-1';
+                ind.innerHTML = '<span class="h-2 w-2 rounded-full bg-yellow-500 animate-pulse"></span> ' + text;
+            } else if (status === 'synced') {
+                ind.className = 'text-xs px-2.5 py-1 rounded-full font-bold bg-green-100 text-green-700 flex items-center gap-1';
+                ind.innerHTML = '<span class="h-2 w-2 rounded-full bg-green-500 animate-ping"></span> ' + text;
+            } else {
+                ind.className = 'text-xs px-2.5 py-1 rounded-full font-bold bg-red-100 text-red-700 flex items-center gap-1';
+                ind.innerHTML = '<span class="h-2 w-2 rounded-full bg-red-500"></span> ' + text;
+            }
+        }
+
         /* =========================================
            🔒 智慧解鎖與自動登入防護
         ========================================= */
@@ -493,7 +460,11 @@ function generateUUID() {
                             masterPassword = decryptedPass;
                             if (loadLocalData()) {
                                 enterApp();
-                                setTimeout(() => showModal("自動解鎖成功 🔓", "已偵測到信任裝置，自動完成 AES-256 安全解密！", "success"), 500);
+                                setTimeout(() => {
+                                    showModal("自動解鎖成功 🔓", "已偵測到信任裝置，自動完成 AES-256 安全解密！", "success");
+                                    // 自動同步下載
+                                    syncFromGoogle(true);
+                                }, 500);
                                 return;
                             }
                         }
@@ -541,6 +512,8 @@ function generateUUID() {
                         localStorage.removeItem('autoUnlock_v4_key');
                     }
                     enterApp();
+                    // 手動輸入密碼解鎖後也主動下載最新雲端備份，免手動匯入
+                    syncFromGoogle(true);
                 }
             }
         }
@@ -580,12 +553,11 @@ function generateUUID() {
             localStorage.setItem(STORAGE_KEY, encrypted);
         }
 
-        // 🟢 修復：加載資料後自動重算與更新表格
+        // 加載資料後自動重算與更新表格
         function loadLocalData() {
             if (!masterPassword) return false;
             const encrypted = localStorage.getItem(STORAGE_KEY);
             if (!encrypted) {
-                // 嘗試搬移舊版 (若有)
                 migrateOldData();
                 return true;
             }
@@ -748,7 +720,7 @@ function generateUUID() {
                 return b.mileage - a.mileage;
             });
 
-            // 計算油耗
+            // 計算油耗與行駛區間里程
             return vRecords.map((r, i) => {
                 let prev = null;
                 // 後方的都是時間更早、索引更大的紀錄
@@ -768,7 +740,7 @@ function generateUUID() {
             });
         }
 
-        // 🟢 全域排序函數，保障在 enterApp, commitExcelImport, syncFromGoogle 下載後能正常排序
+        // 全域排序函數，保障在 enterApp, commitExcelImport, syncFromGoogle 下載後能正常排序
         function sortRecords() {
             ['car', 'motorcycle'].forEach(v => {
                 if (records[v] && Array.isArray(records[v])) {
@@ -808,7 +780,9 @@ function generateUUID() {
             document.getElementById('mileage').value = '';
             document.getElementById('price').value = '';
             document.getElementById('liters').value = '';
-            showModal('儲存成功', `已新增一筆加油紀錄！`, 'success');
+            
+            // 智慧型背景即時同步
+            syncToGoogle(false); 
         }
 
         function deleteRecord(id) {
@@ -816,6 +790,9 @@ function generateUUID() {
                 records[currentVehicle] = records[currentVehicle].filter(r => r.id !== id);
                 saveLocalData();
                 updateUI();
+                
+                // 智慧型背景即時同步
+                syncToGoogle(false);
             });
         }
 
@@ -825,10 +802,13 @@ function generateUUID() {
                 records[currentVehicle] = [];
                 saveLocalData();
                 updateUI();
+                
+                // 智慧型背景即時同步
+                syncToGoogle(false);
             });
         }
 
-        // 渲染歷史紀錄表格與看板
+        // 渲染歷史紀錄表格與看板 (新增「行駛 (km)」欄位顯示)
         function renderTableAndStats() {
             const tbody = document.getElementById('recordTableBody');
             const emptyState = document.getElementById('emptyState');
@@ -849,6 +829,7 @@ function generateUUID() {
                     const displayDate = cleanDate(r.date);
                     const ecoText = r.economy ? r.economy.toFixed(2) : '-';
                     const ecoClass = r.economy ? (currentVehicle==='car'?'text-blue-600 font-bold':'text-emerald-600 font-bold') : 'text-gray-400 text-xs';
+                    const distanceDisplay = r.distance > 0 ? `+${r.distance} km` : '-';
                     
                     totalLiters += r.liters;
                     totalPriceSum += (r.price * r.liters);
@@ -862,6 +843,7 @@ function generateUUID() {
                     tr.innerHTML = `
                         <td class="p-4 text-gray-700">${displayDate}</td>
                         <td class="p-4 font-semibold">${r.mileage}</td>
+                        <td class="p-4 font-medium text-blue-600 bg-blue-50/30">${distanceDisplay}</td>
                         <td class="p-4 text-gray-500">${r.price ? r.price + ' 元' : '-'}</td>
                         <td class="p-4 text-gray-500">${r.liters ? r.liters + ' L' : '-'}</td>
                         <td class="p-4 ${ecoClass}">${ecoText}</td>
@@ -906,7 +888,7 @@ function generateUUID() {
         }
 
         /* =========================================
-           統計分析圖表
+           統計分析圖表 (優化堆疊與圖層 z-index 排序)
         ========================================= */
         function updateAnalysisOptions() {
             const select = document.getElementById('yearSelect');
@@ -925,7 +907,9 @@ function generateUUID() {
             const year = parseInt(document.getElementById('yearSelect').value);
             if(isNaN(year)) return;
 
-            const data = getProcessedRecords().filter(r => new Date(r.date).getFullYear() === year);
+            const allProcessed = getProcessedRecords();
+            const data = allProcessed.filter(r => new Date(r.date).getFullYear() === year);
+
             let yearDistance = 0, yearLiters = 0, yearCost = 0, ecoLiters = 0;
             const monthly = Array.from({length: 12}, () => ({ dist: 0, liters: 0, ecoLiters: 0 }));
 
@@ -942,6 +926,32 @@ function generateUUID() {
                 }
             });
 
+            // 計算歷年平均油耗與里程
+            const histMonthly = Array.from({length: 12}, () => ({
+                totalDist: 0,
+                totalLiters: 0,
+                yearsWithData: new Set()
+            }));
+
+            allProcessed.forEach(r => {
+                const rYear = new Date(r.date).getFullYear();
+                const m = new Date(r.date).getMonth();
+                if (r.economy !== null) {
+                    histMonthly[m].totalDist += r.distance;
+                    histMonthly[m].totalLiters += r.liters;
+                    histMonthly[m].yearsWithData.add(rYear);
+                }
+            });
+
+            // 今年數據
+            const ecoData = monthly.map(m => m.ecoLiters > 0 ? parseFloat((m.dist / m.ecoLiters).toFixed(2)) : null);
+            const distData = monthly.map(m => m.dist > 0 ? m.dist : 0);
+
+            // 歷年平均數據
+            const histEcoData = histMonthly.map(m => m.totalLiters > 0 ? parseFloat((m.totalDist / m.totalLiters).toFixed(2)) : null);
+            const histDistData = histMonthly.map(m => m.yearsWithData.size > 0 ? Math.round(m.totalDist / m.yearsWithData.size) : 0);
+
+            // 更新儀表看板
             document.getElementById('statDistance').innerHTML = `${yearDistance.toLocaleString()} <span class="text-xs font-normal">km</span>`;
             document.getElementById('statLiters').innerHTML = `${yearLiters.toFixed(2)} <span class="text-xs font-normal">L</span>`;
             document.getElementById('statCost').innerHTML = `${Math.round(yearCost).toLocaleString()} <span class="text-xs font-normal">元</span>`;
@@ -951,33 +961,83 @@ function generateUUID() {
             const color = currentVehicle === 'car' ? '#2563eb' : '#10b981';
             const bgLight = currentVehicle === 'car' ? 'rgba(37,99,235,0.08)' : 'rgba(16,185,129,0.08)';
 
-            const ecoData = monthly.map(m => m.ecoLiters > 0 ? (m.dist/m.ecoLiters).toFixed(2) : null);
-            const distData = monthly.map(m => m.dist > 0 ? m.dist : 0);
-
+            // 🟢 折線圖 (每月平均油耗趨勢) 完美圖層調校 (order)
             if(chartEco) chartEco.destroy();
-            chartEco = new Chart(document.getElementById('chartEconomy'), {
+            chartEco = new Chart(document.getElementById('chartEconomy').getContext('2d'), {
                 type: 'line',
-                data: { labels, datasets: [{ label: '平均油耗(km/L)', data: ecoData, borderColor: color, backgroundColor: bgLight, fill: true, tension: 0.3, spanGaps: true }] },
+                data: { 
+                    labels, 
+                    datasets: [
+                        { 
+                            label: '今年平均油耗', 
+                            data: ecoData, 
+                            borderColor: color, 
+                            backgroundColor: bgLight, 
+                            fill: true, 
+                            tension: 0.3, 
+                            spanGaps: true,
+                            borderWidth: 3.5, // 今年加粗線條更顯眼
+                            pointBackgroundColor: color,
+                            pointHoverBackgroundColor: color,
+                            pointRadius: 4,
+                            order: 1 // 🔴 最低 order，強制浮現在最上方第一圖層
+                        },
+                        { 
+                            label: '歷年平均油耗', 
+                            data: histEcoData, 
+                            borderColor: '#93c5fd', 
+                            backgroundColor: 'rgba(147, 197, 253, 0.06)', // 極致輕透淺藍色背景
+                            fill: true, 
+                            tension: 0.3, 
+                            spanGaps: true,
+                            borderWidth: 1.5, // 歷年平均細化輔助線
+                            pointRadius: 2,
+                            order: 2 // 🔴 最高 order，強制沉澱在後方底層，絕不遮擋今年數據
+                        }
+                    ] 
+                },
                 options: { responsive: true, maintainAspectRatio: false }
             });
 
+            // 🟢 直條圖 (每月行駛里程對比) 
             if(chartDist) chartDist.destroy();
             chartDist = new Chart(document.getElementById('chartDistance'), {
                 type: 'bar',
-                data: { labels, datasets: [{ label: '行駛里程(km)', data: distData, backgroundColor: color, borderRadius: 4 }] },
-                options: { responsive: true, maintainAspectRatio: false }
+                data: { 
+                    labels, 
+                    datasets: [
+                        { 
+                            label: '今年', 
+                            data: distData, 
+                            backgroundColor: color, 
+                            borderRadius: 4,
+                            order: 1
+                        },
+                        { 
+                            label: '歷年', 
+                            data: histDistData, 
+                            backgroundColor: '#93c5fd', 
+                            borderRadius: 4,
+                            order: 2
+                        }
+                    ] 
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { min: 0 } } }
             });
         }
 
         /* =========================================
-           ☁️ Google Sheets 同步模組 (Car/Motorcycle 雙表對接)
+           ☁️ Google Sheets 同步模組 (背景自動同步)
         ========================================= */
-        function syncFromGoogle() {
+        function syncFromGoogle(silent = false) {
             const url = document.getElementById('syncUrl').value.trim();
-            if(!url) return showModal("錯誤", "請填寫 Web App URL", "error");
+            if(!url) {
+                if(!silent) showModal("錯誤", "請填寫 Web App URL", "error");
+                return;
+            }
             localStorage.setItem('syncUrl_v4_encrypted', CryptoJS.AES.encrypt(url, masterPassword).toString());
 
-            showModal("同步中", "正在連線 Google 雲端拉取歷史數據，請稍候...", "info");
+            setCloudStatus('syncing', '正在同步雲端...');
             
             fetch(url)
                 .then(r => r.json())
@@ -1041,23 +1101,32 @@ function generateUUID() {
                     saveLocalData();
                     updateUI();
                     
-                    showModal("同步成功 🎉", `成功下載並合併雲端數據！\n新增汽車: ${newCarCount} 筆\n新增機車: ${newMotorCount} 筆\n目前共有汽車 ${records.car.length} 筆，機車 ${records.motorcycle.length} 筆紀錄。`, "success");
+                    setCloudStatus('synced', '雲端已同步');
+                    
+                    if (!silent) {
+                        showModal("同步成功 🎉", `成功下載並合併雲端數據！\n新增汽車: ${newCarCount} 筆\n新增機車: ${newMotorCount} 筆\n目前共有汽車 ${records.car.length} 筆，機車 ${records.motorcycle.length} 筆紀錄。`, "success");
+                    }
                 })
                 .catch(e => {
                     console.error(e);
-                    showModal("連線失敗 ❌", "無法讀取 Google Sheets！請確保 Apps Script 已成功發布，且權限設定為「任何人」。", "error");
+                    setCloudStatus('error', '雲端同步失敗');
+                    if (!silent) {
+                        showModal("連線失敗 ❌", "無法讀取 Google Sheets！請確保 Apps Script 已成功發布，且權限設定為「任何人」。", "error");
+                    }
                 });
         }
 
-        function syncToGoogle() {
+        function syncToGoogle(showNotification = true) {
             const url = document.getElementById('syncUrl').value.trim();
-            if(!url) return showModal("錯誤", "請填寫 Web App URL", "error");
+            if(!url) {
+                if(showNotification) showModal("錯誤", "請填寫 Web App URL", "error");
+                return;
+            }
             
             const totalCount = records.car.length + records.motorcycle.length;
-            if(totalCount === 0) return showModal("提示", "您目前無任何紀錄可上傳！", "warning");
-            
             localStorage.setItem('syncUrl_v4_encrypted', CryptoJS.AES.encrypt(url, masterPassword).toString());
-            showModal("正在傳送", "正在封裝數據並安全覆寫至雲端試算表...", "info");
+            
+            setCloudStatus('syncing', '正在同步雲端...');
 
             const payload = {
                 car: [...records.car]
@@ -1079,8 +1148,19 @@ function generateUUID() {
             };
 
             fetch(url, { method: "POST", mode: "no-cors", headers: {"Content-Type":"text/plain"}, body: JSON.stringify(payload) })
-                .then(() => showModal("同步成功 🎉", `本地完整 ${totalCount} 筆資料已成功寫入雲端的 Car 與 Motorcycle 工作表中！`, "success"))
-                .catch(e => showModal("失敗", "傳送錯誤，請檢查網路狀態或部署 URL。", "error"));
+                .then(() => {
+                    setCloudStatus('synced', '雲端已同步');
+                    if (showNotification) {
+                        showModal("同步成功 🎉", `本地完整 ${totalCount} 筆資料已成功寫入雲端的 Car 與 Motorcycle 工作表中！`, "success");
+                    }
+                })
+                .catch(e => {
+                    console.error(e);
+                    setCloudStatus('error', '雲端同步失敗');
+                    if (showNotification) {
+                        showModal("失敗", "傳送錯誤，請檢查網路狀態或部署 URL。", "error");
+                    }
+                });
         }
     </script>
 </body>
